@@ -4,6 +4,7 @@ import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import GlassCard from "@/components/common/GlassCard";
 import { peerService } from "@/services/peerService";
 import { presenceService } from "@/services/presenceService";
+import { profileService } from "@/services/profileService";
 import { bus } from "@/lib/events";
 import { useStore } from "@/store/useStore";
 import { fingerprint } from "@/lib/crypto";
@@ -40,8 +41,12 @@ export default function WatchParty() {
   const player = useRef<any>(null);
   const vid = useRef<string | null>(null);
   const applying = useRef(false);
+  const lastStage = useRef<WatchPartyState | null>(null);
   const [input, setInput] = useState("");
   const [stage, setStage] = useState<WatchPartyState | null>(null);
+
+  const nameFor = (pk: string) => profileService.get(pk)?.username || fingerprint(pk);
+  const flash = (text: string) => bus.emit("notify", { text });
 
   function broadcast(playing: boolean, baseTime: number, videoId = vid.current, title?: string) {
     if (!videoId) return;
@@ -79,8 +84,18 @@ export default function WatchParty() {
     }
   }
 
-  function applyRemote(s: WatchPartyState) {
+  function applyRemote(s: WatchPartyState, silent = false) {
+    const prev = lastStage.current;
+    lastStage.current = s;
     setStage(s);
+    // Announce who did what (skip our own actions + the silent catch-up on open).
+    if (!silent && s.by && s.by !== me?.publicKey) {
+      const who = nameFor(s.by);
+      if (!prev?.videoId && s.videoId) flash(`${who} started a watch party`);
+      else if (prev && prev.videoId !== s.videoId) flash(`${who} changed the video`);
+      else if (prev && prev.playing && !s.playing) flash(`${who} paused the video`);
+      else if (prev && !prev.playing && s.playing) flash(`${who} resumed the video`);
+    }
     if (!s.videoId) return;
     applying.current = true;
     ensurePlayer(s.videoId, Math.max(0, posOf(s)), s.playing);
@@ -89,9 +104,10 @@ export default function WatchParty() {
   }
 
   useEffect(() => {
-    const off = bus.on("stage:in", applyRemote);
+    const off = bus.on("stage:in", (s) => applyRemote(s));
     const cur = peerService.currentStage();
-    if (cur && cur.videoId) applyRemote(cur);   // arrived mid-party → catch up
+    lastStage.current = cur;
+    if (cur && cur.videoId) applyRemote(cur, true);   // arrived mid-party → silent catch up
     return off;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
