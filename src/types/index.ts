@@ -107,6 +107,17 @@ export interface Post {
   source: "self" | "peer" | "relay" | "cache";
 }
 
+export type AlertKind = "reply" | "reaction" | "dm" | "watch" | "info";
+export interface Alert {
+  id: string;
+  kind: AlertKind;
+  text: string;
+  route: string;       // where clicking it takes you (e.g. "/", "/messages")
+  postId?: string;     // if set, the feed scrolls to & highlights this post
+  at: number;
+  read: boolean;
+}
+
 export interface MediaRef {
   type: "image" | "audio" | "video";
   url: string;        // data URL (small) or peer/relay locator

@@ -85,14 +85,20 @@ class PeerService {
         if (this.isHub) this.broadcast(env, fromId);
         break;
       case "dm":
-        if (env.d.author !== identityService.pk) { await storage.putMessage(env.d); bus.emit("chat:message", env.d); }
+        if (env.d.author !== identityService.pk) {
+          await storage.putMessage(env.d); bus.emit("chat:message", env.d);
+          bus.emit("alert", { kind: "dm", text: `${env.d.authorName} sent you a message`, route: "/messages" });
+        }
         if (this.isHub) this.broadcast(env, fromId);
         break;
       case "react":
         if (env.d.from !== identityService.pk) {
           const post = await storage.getPost(env.d.postId);
           await feedService.applyReaction(env.d.postId, env.d.emoji, env.d.from);
-          if (post && post.author === identityService.pk) bus.emit("notify", { text: `${env.d.fromName} reacted ${env.d.emoji} to your post` });
+          if (post && post.author === identityService.pk) {
+            bus.emit("notify", { text: `${env.d.fromName} reacted ${env.d.emoji} to your post` });
+            bus.emit("alert", { kind: "reaction", text: `${env.d.fromName} reacted ${env.d.emoji} to your post`, route: "/", postId: env.d.postId });
+          }
         }
         if (this.isHub) this.broadcast(env, fromId);
         break;

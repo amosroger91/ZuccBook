@@ -83,7 +83,7 @@ export default function GlobalWatchPlayer() {
     const prev = lastStage.current; lastStage.current = s; setStage(s);
     if (!silent && s.by && s.by !== me?.publicKey) {
       const who = nameFor(s);
-      if (!prev?.videoId && s.videoId) flash(`${who} started a watch party`);
+      if (!prev?.videoId && s.videoId) { flash(`${who} started a watch party`); bus.emit("alert", { kind: "watch", text: `${who} started a watch party`, route: "/listen" }); }
       else if (prev && prev.videoId !== s.videoId) flash(`${who} changed the video`);
       else if (prev && prev.playing && !s.playing) flash(`${who} paused the video`);
       else if (prev && !prev.playing && s.playing) flash(`${who} resumed the video`);

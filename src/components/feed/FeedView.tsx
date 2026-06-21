@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { Box, ToggleButtonGroup, ToggleButton, Stack, Typography, Button, useMediaQuery, LinearProgress, Chip, CircularProgress, TextField, InputAdornment, IconButton } from "@mui/material";
-import LocalCafeRoundedIcon from "@mui/icons-material/LocalCafeRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import ClearRoundedIcon from "@mui/icons-material/ClearRounded";
 import Composer from "./Composer";
@@ -69,6 +68,19 @@ export default function FeedView() {
   }, [algo, settings.moderationProfile]);
 
   useEffect(() => { refresh(); const off = bus.on("feed:updated", refresh); return off; }, [refresh]);
+  // Scroll to & highlight a post when an alert deep-links to it.
+  useEffect(() => bus.on("focus:post", ({ postId }) => {
+    let tries = 0;
+    const tick = () => {
+      const el = document.getElementById(`post-${postId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("zb-focus");
+        setTimeout(() => el.classList.remove("zb-focus"), 2200);
+      } else if (tries++ < 20) setTimeout(tick, 150); // wait for the feed to render
+    };
+    tick();
+  }), []);
   useEffect(() => { const off = bus.on("rss:refreshing", setRefreshing); return off; }, []);
   useEffect(() => { rssService.refresh().catch(() => {}); }, []); // top up RSS Bot stories (throttled)
 
@@ -144,24 +156,6 @@ export default function FeedView() {
             </Typography>
           </GlassCard>
 
-          <GlassCard sx={{ mt: 2, border: "1px solid #f6b73c", background: "linear-gradient(180deg, rgba(255,224,138,0.35), rgba(255,255,255,0.6))" }}>
-            <Typography variant="overline" sx={{ color: "#9a6b14", fontWeight: 800 }}>Support the project ☕</Typography>
-            <Typography variant="body2" sx={{ mt: 0.5 }}>
-              ZuccBook will <b>always be free</b> — a true bastion of openness and decentralization.
-              Moderation is systematic and transparent (you decide, not a corporation), the on-device LLM is here to
-              <b> make sense of content instead of censoring you</b>, and the feed algorithm is <b>open source and uncorrupted</b> —
-              unlike every other platform out there.
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              There are no ads, no data harvesting, and no investors to please. The only thing that keeps it going is you
-              supporting the developer directly. 🙂
-            </Typography>
-            <Button fullWidth variant="contained" href="https://buymeacoffee.com/amosroger91" target="_blank" rel="noopener noreferrer"
-              startIcon={<LocalCafeRoundedIcon />}
-              sx={{ mt: 1.5, fontWeight: 800, color: "#5a3a12", background: "linear-gradient(135deg,#ffe08a,#ffce5a)", boxShadow: "0 4px 12px rgba(246,183,60,.3)", "&:hover": { background: "linear-gradient(135deg,#ffe9a8,#ffd877)" } }}>
-              Buy me a coffee
-            </Button>
-          </GlassCard>
         </Box>
       )}
     </Box>

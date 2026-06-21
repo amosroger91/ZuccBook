@@ -11,6 +11,7 @@ export default function WalletView() {
   const loc = useLocation();
   const [address, setAddress] = useState("");
   const [bal, setBal] = useState<{ matic: string; usdc: string } | null>(null);
+  const [px, setPx] = useState<{ maticUsd: number; usdcUsd: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [to, setTo] = useState((loc.state as any)?.to ?? "");
   const [amount, setAmount] = useState("");
@@ -18,7 +19,11 @@ export default function WalletView() {
   const [sending, setSending] = useState(false);
   const [showKey, setShowKey] = useState("");
 
-  const refresh = () => { setBusy(true); walletService.balances().then(setBal).catch(() => toast("Polygon network busy — tap refresh to retry", "warn")).finally(() => setBusy(false)); };
+  const refresh = () => {
+    setBusy(true);
+    walletService.balances().then(setBal).catch(() => toast("Polygon network busy — tap refresh to retry", "warn")).finally(() => setBusy(false));
+    walletService.prices().then(setPx).catch(() => {});
+  };
   useEffect(() => { walletService.address().then(setAddress); refresh(); }, []);
 
   function copy(text: string) { navigator.clipboard?.writeText(text); toast("Copied", "success"); }
@@ -58,12 +63,29 @@ export default function WalletView() {
       <GlassCard sx={{ mb: 2 }}>
         <Typography variant="overline" color="text.secondary">Balance</Typography>
         <Stack direction="row" alignItems="center" spacing={2} sx={{ mt: 0.5 }}>
-          <Box><Typography variant="h4">{bal ? bal.matic : "—"}</Typography><Typography variant="caption" color="text.secondary">MATIC</Typography></Box>
+          <Box>
+            <Typography variant="h4">{bal ? bal.matic : "—"}</Typography>
+            <Typography variant="caption" color="text.secondary">MATIC{px && bal ? ` · ≈ $${(Number(bal.matic) * px.maticUsd).toFixed(2)}` : ""}</Typography>
+          </Box>
           <Divider orientation="vertical" flexItem />
-          <Box><Typography variant="h4">{bal ? bal.usdc : "—"}</Typography><Typography variant="caption" color="text.secondary">USDC</Typography></Box>
+          <Box>
+            <Typography variant="h4">{bal ? bal.usdc : "—"}</Typography>
+            <Typography variant="caption" color="text.secondary">USDC{px && bal ? ` · ≈ $${(Number(bal.usdc) * px.usdcUsd).toFixed(2)}` : ""}</Typography>
+          </Box>
           <Box sx={{ flex: 1 }} />
           <Tooltip title="Refresh"><span><IconButton onClick={refresh} disabled={busy}>{busy ? <CircularProgress size={18} /> : <RefreshRoundedIcon />}</IconButton></span></Tooltip>
         </Stack>
+        <Box sx={{ mt: 1.5, p: 1, borderRadius: 1.5, bgcolor: "rgba(58,123,240,0.06)", border: "1px solid rgba(58,155,240,0.16)" }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontWeight: 700 }}>USD conversion {px ? "" : "· loading…"}</Typography>
+          {px && (
+            <Stack direction="row" spacing={2} sx={{ mt: 0.25, flexWrap: "wrap" }}>
+              <Typography variant="body2">1 MATIC ≈ <b>${px.maticUsd.toFixed(4)}</b></Typography>
+              <Typography variant="body2">$1 ≈ <b>{(1 / px.maticUsd).toFixed(3)} MATIC</b></Typography>
+              <Typography variant="body2">1 USDC ≈ <b>${px.usdcUsd.toFixed(2)}</b></Typography>
+            </Stack>
+          )}
+          <Typography variant="caption" color="text.secondary">Live rate via CoinGecko · for reference only.</Typography>
+        </Box>
       </GlassCard>
 
       <GlassCard sx={{ mb: 2 }}>

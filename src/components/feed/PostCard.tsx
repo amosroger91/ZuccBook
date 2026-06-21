@@ -339,7 +339,7 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
   const sourceColor = post.source === "self" ? "#54c95a" : post.source === "relay" || post.source === "peer" ? "#3f97ff" : "#7a85a8";
 
   return (
-    <GlassCard sx={{ mb: 1.5 }}>
+    <GlassCard id={`post-${post.id}`} sx={{ mb: 1.5, scrollMarginTop: 70, transition: "box-shadow .4s ease", "&.zb-focus": { boxShadow: "0 0 0 3px rgba(58,155,240,0.7)" } }}>
       <Stack direction="row" spacing={1.5}>
         <Box onClick={visit} sx={{ cursor: canVisit ? "pointer" : "default" }}>
           <UserAvatar pk={post.author} name={post.authorName} avatar={post.authorAvatar} />

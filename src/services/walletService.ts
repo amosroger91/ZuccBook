@@ -75,6 +75,25 @@ class WalletService {
     catch { return await read(await getProvider(true)); }  // rotate to another RPC and retry
   }
 
+  /** Live USD prices for the supported tokens (CoinGecko, CORS-friendly with a
+   *  proxy fallback). USDC is a stablecoin so it's ~$1. Returns null on failure. */
+  async prices(): Promise<{ maticUsd: number; usdcUsd: number } | null> {
+    // Polygon's native token rebranded MATIC→POL; CoinGecko serves the price
+    // under "polygon-ecosystem-token" now (matic-network returns empty). Fall
+    // back to wmatic, then the old id, just in case.
+    const url = "https://api.coingecko.com/api/v3/simple/price?ids=polygon-ecosystem-token,wmatic,matic-network,usd-coin&vs_currencies=usd";
+    for (const px of ["", "https://api.allorigins.win/raw?url="]) {
+      try {
+        const r = await fetch(px ? px + encodeURIComponent(url) : url, { cache: "no-store" });
+        if (!r.ok) continue;
+        const j: any = await r.json();
+        const m = j["polygon-ecosystem-token"]?.usd || j["wmatic"]?.usd || j["matic-network"]?.usd;
+        if (m) return { maticUsd: m, usdcUsd: j["usd-coin"]?.usd ?? 1 };
+      } catch { /* try proxy */ }
+    }
+    return null;
+  }
+
   /** Send MATIC or USDC. Returns the tx hash. Throws on failure. */
   async send(to: string, amount: string, currency: Currency): Promise<string> {
     if (!isAddress(to)) throw new Error("Invalid address");

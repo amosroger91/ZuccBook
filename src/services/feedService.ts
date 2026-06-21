@@ -72,7 +72,17 @@ class FeedService {
     if (await storage.getPost(post.id)) return;
     post.embedding ??= embed([post.text ?? "", ...post.tags].join(" "));
     await storage.putPost(post);
+    await this.maybeReplyAlert(post);
     bus.emit("feed:updated", undefined);
+  }
+
+  /** Raise an alert when someone replies to one of my posts. */
+  private async maybeReplyAlert(post: Post) {
+    if (!post.replyTo || post.author === identityService.pk) return;
+    const parent = await storage.getPost(post.replyTo);
+    if (parent && parent.author === identityService.pk) {
+      bus.emit("alert", { kind: "reply", text: `${post.authorName} replied to your post`, route: "/", postId: parent.id });
+    }
   }
 
   /** Absorb a post from durable storage (Gun): insert if new, else merge in
@@ -83,14 +93,19 @@ class FeedService {
     if (!existing) {
       post.embedding ??= embed([post.text ?? "", ...(post.tags ?? [])].join(" "));
       await storage.putPost(post);
+      await this.maybeReplyAlert(post);
       bus.emit("feed:updated", undefined);
       return;
     }
+    const mine = existing.author === identityService.pk;
     let changed = false;
     for (const [emoji, voters] of Object.entries(post.reactions ?? {})) {
       const cur = existing.reactions[emoji] ?? [];
+      const fresh = voters.filter((v) => !cur.includes(v) && v !== identityService.pk);
       const union = [...new Set([...cur, ...voters])];
       if (union.length !== cur.length) { existing.reactions[emoji] = union; changed = true; }
+      // someone (not me) reacted to my post → alert that deep-links to it
+      if (mine && fresh.length) bus.emit("alert", { kind: "reaction", text: `Someone reacted ${emoji} to your post`, route: "/", postId: existing.id });
     }
     // Recover media: if a richer copy arrives and ours lost it, adopt it. We
     // never clear existing media from an incoming copy that's missing it.

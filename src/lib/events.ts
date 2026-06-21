@@ -3,7 +3,7 @@
 //  driven: services emit, the UI and other services subscribe.
 //  Decouples the service layer from React entirely.
 // ============================================================
-import type { Post, ChatMessage, RichPresence, ListenRoom, WatchPartyState, Profile, Listing, TrustEdge } from "@/types";
+import type { Post, ChatMessage, RichPresence, ListenRoom, WatchPartyState, Profile, Listing, TrustEdge, Alert } from "@/types";
 
 export interface ZuccBookEvents {
   "identity:ready": { pk: string };
@@ -19,6 +19,9 @@ export interface ZuccBookEvents {
   "trust:publish": TrustEdge;    // share a web-of-trust edge
   "trust:update": TrustEdge;     // a trust edge arrived
   "notify": { text: string };
+  "alert": { kind: Alert["kind"]; text: string; route: string; postId?: string };  // raise a clickable alert
+  "alerts:updated": void;        // the alert list changed
+  "focus:post": { postId: string };  // scroll to & highlight a post in the feed
   "chat:message": ChatMessage;
   "chat:typing": { channel: string; pk: string };
   "presence:update": RichPresence;

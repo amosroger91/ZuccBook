@@ -1,8 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Box, Stack, Typography, Tooltip, IconButton, Chip, Avatar, Divider, CircularProgress, useMediaQuery } from "@mui/material";
+import { Box, Stack, Typography, Tooltip, IconButton, Chip, Avatar, Divider, CircularProgress, Badge, Popover, Button, useMediaQuery } from "@mui/material";
+import NotificationsRoundedIcon from "@mui/icons-material/NotificationsRounded";
 import { useNavigate, useLocation } from "react-router-dom";
 import { bus } from "@/lib/events";
 import { companionService } from "@/services/companionService";
+import { alertsService } from "@/services/alertsService";
+import { relativeTime } from "@/lib/time";
+import type { Alert } from "@/types";
 import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import ChatRoundedIcon from "@mui/icons-material/ChatRounded";
@@ -34,6 +38,56 @@ const NAV = [
 ];
 
 const STATUS_COLOR: Record<string, string> = { online: "#54c95a", idle: "#ffcc66", away: "#ff9a5d", dnd: "#ff5d7a", offline: "#7a85a8" };
+
+const ALERT_ICON: Record<Alert["kind"], string> = { reply: "💬", reaction: "✨", dm: "✉️", watch: "📺", info: "🔔" };
+
+// Notification center — clicking an alert takes you straight to what it's about.
+function AlertsBell() {
+  const nav = useNavigate();
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const [alerts, setAlerts] = useState<Alert[]>(alertsService.list());
+  const [unread, setUnread] = useState(alertsService.unread());
+  useEffect(() => bus.on("alerts:updated", () => { setAlerts([...alertsService.list()]); setUnread(alertsService.unread()); }), []);
+
+  function open(e: React.MouseEvent<HTMLElement>) { setAnchor(e.currentTarget); alertsService.markAllRead(); }
+  function go(a: Alert) {
+    setAnchor(null);
+    alertsService.markRead(a.id);
+    nav(a.route);
+    if (a.postId) { const id = a.postId; setTimeout(() => bus.emit("focus:post", { postId: id }), 250); }
+  }
+
+  return (
+    <>
+      <Tooltip title="Alerts">
+        <IconButton onClick={open} sx={{ color: "#fff" }}>
+          <Badge badgeContent={unread} color="error" max={9}><NotificationsRoundedIcon /></Badge>
+        </IconButton>
+      </Tooltip>
+      <Popover open={!!anchor} anchorEl={anchor} onClose={() => setAnchor(null)} anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}>
+        <Box sx={{ width: 340, maxHeight: 440, display: "flex", flexDirection: "column" }}>
+          <Stack direction="row" alignItems="center" sx={{ px: 1.5, py: 1, borderBottom: "1px solid var(--bl-line)" }}>
+            <Typography sx={{ fontWeight: 800, flex: 1 }}>Alerts</Typography>
+            {alerts.length > 0 && <Button size="small" onClick={() => { alertsService.clear(); }}>Clear</Button>}
+          </Stack>
+          <Box sx={{ overflowY: "auto" }}>
+            {alerts.length === 0 && <Typography color="text.secondary" sx={{ p: 2, textAlign: "center" }}>No alerts yet — replies, reactions and messages will show up here.</Typography>}
+            {alerts.map((a) => (
+              <Stack key={a.id} direction="row" spacing={1} alignItems="center" onClick={() => go(a)}
+                sx={{ px: 1.5, py: 1, cursor: "pointer", borderBottom: "1px solid var(--bl-line)", bgcolor: a.read ? "transparent" : "rgba(58,155,240,0.08)", "&:hover": { bgcolor: "rgba(58,155,240,0.14)" } }}>
+                <Box sx={{ fontSize: 18 }}>{ALERT_ICON[a.kind]}</Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="body2" sx={{ fontWeight: a.read ? 400 : 700 }}>{a.text}</Typography>
+                  <Typography variant="caption" color="text.secondary">{relativeTime(a.at)} · tap to open</Typography>
+                </Box>
+              </Stack>
+            ))}
+          </Box>
+        </Box>
+      </Popover>
+    </>
+  );
+}
 
 // Live indicator for the on-device LLM as it auto-downloads on first load.
 // Shows a progress ring while loading, a brief "AI ready" once in memory, then
@@ -129,6 +183,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <Stack direction="row" alignItems="center" spacing={1.5} sx={{ px: 2, py: 1, position: "sticky", top: 0, zIndex: 5, color: "#fff", borderBottom: "1px solid var(--bl-title-edge)", background: "var(--bl-gloss-title), linear-gradient(180deg, var(--bl-title-hi), var(--bl-title-low))", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.5)" }}>
           <Typography variant="h6" sx={{ flex: 1, color: "#fff", textShadow: "0 1px 2px rgba(0,0,0,0.4)" }}>{NAV.find((n) => n.to === pathname)?.label ?? "ZuccBook"}</Typography>
           <ModelStatusChip />
+          <AlertsBell />
           <Chip size="small" label={`${onlineCount} online`} sx={{ bgcolor: "rgba(255,255,255,0.92)", color: "var(--bl-green-600)", border: "none", "& .MuiChip-label": { fontWeight: 700 } }} icon={<Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "#4ca325", ml: 1 }} />} />
           <Tooltip title={me?.username ?? ""}>
             <Box sx={{ position: "relative", cursor: "pointer" }} onClick={() => nav("/profile")}>
