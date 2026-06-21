@@ -86,6 +86,46 @@ class IdentityService {
     bus.emit("identity:ready", { pk: parsed.publicKey });
     return parsed;
   }
+
+  /** A compact, URL-safe token of the identity (keys + name) for the
+   *  "log in on another device" QR / link. Excludes heavy fields (avatar/html);
+   *  those re-sync via the public profile. Treat this token as your password —
+   *  anyone who has it controls the account. */
+  exportToken(): string {
+    if (!this.me) return "";
+    const { publicKey, privateKeyJwk, username, badges, reputation, createdAt } = this.me;
+    return b64urlEncode(JSON.stringify({ publicKey, privateKeyJwk, username, badges, reputation, createdAt }));
+  }
+
+  /** Import an identity from a token (the other half of exportToken). */
+  async importToken(token: string): Promise<SecretIdentity> {
+    const parsed = JSON.parse(b64urlDecode(token)) as Partial<SecretIdentity>;
+    if (!parsed.publicKey || !parsed.privateKeyJwk) throw new Error("Invalid login token");
+    const me: SecretIdentity = {
+      publicKey: parsed.publicKey,
+      privateKeyJwk: parsed.privateKeyJwk,
+      username: parsed.username || "Friend",
+      avatar: parsed.avatar ?? "",
+      bio: parsed.bio ?? "",
+      badges: parsed.badges ?? [],
+      reputation: parsed.reputation ?? 0,
+      createdAt: parsed.createdAt ?? Date.now(),
+    };
+    this.me = me;
+    await storage.saveIdentity(me);
+    bus.emit("identity:ready", { pk: me.publicKey });
+    return me;
+  }
+}
+
+function b64urlEncode(s: string): string {
+  const bytes = new TextEncoder().encode(s);
+  let bin = ""; for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function b64urlDecode(s: string): string {
+  const bin = atob(s.replace(/-/g, "+").replace(/_/g, "/"));
+  return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
 }
 
 export const identityService = new IdentityService();

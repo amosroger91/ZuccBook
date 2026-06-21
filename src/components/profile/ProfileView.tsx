@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Box, Stack, Typography, TextField, Button, Chip, LinearProgress, Grid, Tooltip } from "@mui/material";
 import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
+import QrCode2RoundedIcon from "@mui/icons-material/QrCode2Rounded";
+import DeviceLoginDialog from "./DeviceLoginDialog";
 import MyLocationRoundedIcon from "@mui/icons-material/MyLocationRounded";
 import LanguageRoundedIcon from "@mui/icons-material/LanguageRounded";
 import EmailRoundedIcon from "@mui/icons-material/EmailRounded";
@@ -161,6 +163,7 @@ function OwnProfile({ me, refreshMe }: { me: any; refreshMe: () => void }) {
   const [communities, setCommunities] = useState<string[]>([]);
   const [locating, setLocating] = useState(false);
   const [preview, setPreview] = useState<Profile | null>(null);
+  const [deviceLogin, setDeviceLogin] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const avatarRef = useRef<HTMLInputElement>(null);
   const headerRef = useRef<HTMLInputElement>(null);
@@ -256,10 +259,12 @@ function OwnProfile({ me, refreshMe }: { me: any; refreshMe: () => void }) {
                 <Button variant="contained" onClick={save}>Save & share</Button>
                 <Button variant="outlined" startIcon={<VisibilityRoundedIcon />} onClick={togglePreview}>Preview</Button>
                 <Button variant="text" onClick={() => setHtml(STARTER_HTML)}>Reset HTML</Button>
+                <Button variant="outlined" startIcon={<QrCode2RoundedIcon />} onClick={() => setDeviceLogin(true)}>Log in on another device</Button>
                 <Button variant="outlined" startIcon={<DownloadRoundedIcon />} onClick={() => identityService.exportFile()}>Export identity</Button>
                 <Button variant="text" onClick={() => fileRef.current?.click()}>Import</Button>
                 <input ref={fileRef} type="file" accept="application/json" hidden onChange={(e) => importId(e.target.files?.[0])} />
               </Stack>
+              <DeviceLoginDialog open={deviceLogin} onClose={() => setDeviceLogin(false)} />
             </Stack>
           </GlassCard>
         </Grid>

@@ -6,6 +6,7 @@ import { theme } from "@/theme/theme";
 import "@/bliss.css";   // the Bliss / XP "Luna" design system (tokens + components)
 import "@/bliss.js";    // Bliss behavior layer (window.Bliss); harmless for our MUI tree
 import App from "@/App";
+import { identityService } from "@/services/identityService";
 
 // Swallow noisy, non-fatal WebGPU/WebLLM rejections (e.g. "device lost",
 // "Instance dropped in popErrorScope") so a GPU hiccup while the on-device model
@@ -16,25 +17,33 @@ window.addEventListener("unhandledrejection", (e) => {
   if (/popErrorScope|Instance dropped|external Instance|GPUDevice|device lost|WebGPU/i.test(msg)) e.preventDefault();
 });
 
-// Always open on the home feed — ignore a stale route hash left over from a
-// previous session so a fresh load lands on the timeline, not /wallet, /settings, etc.
-if (location.hash && location.hash !== "#/" && location.hash !== "#") {
-  history.replaceState(null, "", `${location.pathname}${location.search}#/`);
+async function start() {
+  // "Log in on another device": #/login?k=<token> imports the identity, then
+  // drops to the feed (so the token never lingers in the address bar).
+  const login = location.hash.match(/^#\/login\?k=([^&]+)/);
+  if (login) {
+    try { await identityService.importToken(decodeURIComponent(login[1])); } catch (e) { console.warn("[login] token import failed", e); }
+    history.replaceState(null, "", `${location.pathname}${location.search}#/`);
+  } else if (location.hash && location.hash !== "#/" && location.hash !== "#") {
+    // Always open on the home feed — ignore a stale route hash from last session.
+    history.replaceState(null, "", `${location.pathname}${location.search}#/`);
+  }
+
+  ReactDOM.createRoot(document.getElementById("root")!).render(
+    <React.StrictMode>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <HashRouter>
+          <App />
+        </HashRouter>
+      </ThemeProvider>
+    </React.StrictMode>,
+  );
+
+  // dismiss the boot splash once React has painted
+  requestAnimationFrame(() => {
+    const boot = document.getElementById("boot");
+    if (boot) { boot.style.opacity = "0"; setTimeout(() => boot.remove(), 500); }
+  });
 }
-
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <HashRouter>
-        <App />
-      </HashRouter>
-    </ThemeProvider>
-  </React.StrictMode>,
-);
-
-// dismiss the boot splash once React has painted
-requestAnimationFrame(() => {
-  const boot = document.getElementById("boot");
-  if (boot) { boot.style.opacity = "0"; setTimeout(() => boot.remove(), 500); }
-});
+start();
