@@ -9,6 +9,8 @@ export interface ZuccBookEvents {
   "identity:ready": { pk: string };
   "feed:post": Post;
   "feed:updated": void;
+  "feed:react-out": { postId: string; emoji: string };
+  "notify": { text: string };
   "chat:message": ChatMessage;
   "chat:typing": { channel: string; pk: string };
   "presence:update": RichPresence;

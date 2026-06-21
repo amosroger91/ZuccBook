@@ -68,18 +68,29 @@ class FeedService {
     bus.emit("feed:updated", undefined);
   }
 
-  async react(postId: string, emoji: string) {
+  /** Toggle a reaction by a specific person (used for both local and remote).
+   *  Idempotent per (person, emoji), so every peer converges to the same state. */
+  async applyReaction(postId: string, emoji: string, fromPk: string) {
     const post = await storage.getPost(postId);
     if (!post) return;
-    const me = identityService.pk;
     const arr = post.reactions[emoji] ?? [];
-    const i = arr.indexOf(me);
-    if (i >= 0) arr.splice(i, 1); else arr.push(me);
-    post.reactions[emoji] = arr;
+    const i = arr.indexOf(fromPk);
+    if (i >= 0) arr.splice(i, 1); else arr.push(fromPk);
+    if (arr.length) post.reactions[emoji] = arr; else delete post.reactions[emoji];
     await storage.putPost(post);
-    // engaging teaches the interest profile
-    if (i < 0 && post.embedding) { this.profile.learn(post.embedding, 1.5); this.persistProfile(); }
+    // your own reactions teach the local interest profile
+    if (i < 0 && fromPk === identityService.pk && post.embedding) { this.profile.learn(post.embedding, 1.5); this.persistProfile(); }
     bus.emit("feed:updated", undefined);
+  }
+
+  /** Local reaction → apply + broadcast to the swarm (bus, to avoid an import cycle). */
+  async react(postId: string, emoji: string) {
+    await this.applyReaction(postId, emoji, identityService.pk);
+    bus.emit("feed:react-out", { postId, emoji });
+  }
+
+  async repliesFor(postId: string): Promise<Post[]> {
+    return (await storage.allPosts()).filter((p) => p.replyTo === postId).sort((a, b) => a.createdAt - b.createdAt);
   }
 
   async open(post: Post) {

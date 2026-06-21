@@ -36,7 +36,8 @@ export default function ListenView() {
 
   useEffect(() => {
     listenTogetherService.stations().then((s) => { setStations(s); setLoading(false); }).catch(() => setLoading(false));
-    return () => { listenTogetherService.stop(); };
+    // NOTE: we intentionally do NOT stop playback on unmount — music keeps
+    // playing as you navigate; the mini-player controls it from anywhere.
   }, []);
 
   async function playStation(s: Station) {

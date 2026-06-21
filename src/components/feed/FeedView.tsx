@@ -6,6 +6,7 @@ import GlassCard from "@/components/common/GlassCard";
 import { feedService } from "@/services/feedService";
 import { companionService } from "@/services/companionService";
 import { rssService } from "@/services/rssService";
+import { storage } from "@/services/storage";
 import { useStore } from "@/store/useStore";
 import { bus } from "@/lib/events";
 import type { Post, RecommendationReason, FeedAlgorithm } from "@/types";
@@ -26,6 +27,7 @@ export default function FeedView() {
   const [reasons, setReasons] = useState<Map<string, RecommendationReason>>(new Map());
   const [summary, setSummary] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [replies, setReplies] = useState<Map<string, Post[]>>(new Map());
 
   const algo = settings.feedAlgorithm;
 
@@ -34,6 +36,11 @@ export default function FeedView() {
     setPosts(posts);
     setReasons(reasons);
     setSummary(companionService.summarizeFeed(posts));
+    // group replies under their parent post
+    const map = new Map<string, Post[]>();
+    for (const p of await storage.allPosts()) if (p.replyTo) { const a = map.get(p.replyTo) ?? []; a.push(p); map.set(p.replyTo, a); }
+    for (const a of map.values()) a.sort((x, y) => x.createdAt - y.createdAt);
+    setReplies(map);
   }, [algo, settings.moderationProfile]);
 
   useEffect(() => { refresh(); const off = bus.on("feed:updated", refresh); return off; }, [refresh]);
@@ -68,7 +75,7 @@ export default function FeedView() {
         {posts.length === 0 && (
           <GlassCard><Typography color="text.secondary">No posts match this view yet. Switch algorithms or post something — your feed is generated locally.</Typography></GlassCard>
         )}
-        {posts.map((p) => <PostCard key={p.id} post={p} reason={reasons.get(p.id)} />)}
+        {posts.map((p) => <PostCard key={p.id} post={p} reason={reasons.get(p.id)} replies={replies.get(p.id) ?? []} />)}
       </Box>
 
       {!compact && (

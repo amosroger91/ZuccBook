@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Box, Stack, Typography, IconButton, Slider, Chip, Tooltip } from "@mui/material";
 import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import PauseRoundedIcon from "@mui/icons-material/PauseRounded";
-import StopRoundedIcon from "@mui/icons-material/StopRounded";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import QueueMusicRoundedIcon from "@mui/icons-material/QueueMusicRounded";
 import VolumeUpRoundedIcon from "@mui/icons-material/VolumeUpRounded";
 import { useNavigate } from "react-router-dom";
@@ -48,14 +48,13 @@ export default function MiniPlayer() {
           {state.playing ? <PauseRoundedIcon /> : <PlayArrowRoundedIcon />}
         </IconButton>
       </Tooltip>
-      <Tooltip title="Stop"><IconButton onClick={() => listenTogetherService.stop()}><StopRoundedIcon /></IconButton></Tooltip>
-
       <Stack direction="row" alignItems="center" spacing={1} sx={{ width: 130, display: { xs: "none", sm: "flex" } }}>
         <VolumeUpRoundedIcon fontSize="small" sx={{ opacity: 0.7 }} />
         <Slider size="small" value={vol} onChange={(_, v) => { setVol(v as number); listenTogetherService.setVolume((v as number) / 100); }} />
       </Stack>
 
       <Tooltip title="Browse stations & video"><IconButton onClick={() => nav("/listen")}><QueueMusicRoundedIcon /></IconButton></Tooltip>
+      <Tooltip title="Close player (stops music)"><IconButton onClick={() => listenTogetherService.stop()}><CloseRoundedIcon /></IconButton></Tooltip>
     </Box>
   );
 }

@@ -24,6 +24,7 @@ import MiniPlayer from "@/components/layout/MiniPlayer";
 export default function App() {
   const { ready, onboarded, setReady, setPresence, setOnlineCount } = useStore();
   const [toast, setToast] = useState<{ kind: any; message: string } | null>(null);
+  const [notify, setNotify] = useState<string | null>(null);
 
   useEffect(() => {
     let done = false;
@@ -33,12 +34,13 @@ export default function App() {
     // Safety net: never let a slow/stalled service keep the UI on the splash.
     const fallback = setTimeout(() => { if (!done) setReady(!!identityService.current, DEFAULT_SETTINGS); }, 2500);
     const offToast = bus.on("toast", (t) => setToast(t));
+    const offNotify = bus.on("notify", (n) => setNotify(n.text));
     const refresh = () => { setPresence(presenceService.list()); setOnlineCount(presenceService.list().length + 1); };
     const offPres = bus.on("presence:update", refresh);
     const offConn = bus.on("peer:connected", refresh);
     const offDis = bus.on("peer:disconnected", refresh);
     const timer = setInterval(refresh, 20000);
-    return () => { offToast(); offPres(); offConn(); offDis(); clearInterval(timer); clearTimeout(fallback); };
+    return () => { offToast(); offNotify(); offPres(); offConn(); offDis(); clearInterval(timer); clearTimeout(fallback); };
   }, [setReady, setPresence, setOnlineCount]);
 
   return (
@@ -62,6 +64,19 @@ export default function App() {
         </AppShell>
       )}
       {ready && onboarded && <MiniPlayer />}
+      <Snackbar
+        open={!!notify}
+        autoHideDuration={4000}
+        onClose={() => setNotify(null)}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        {notify ? (
+          <Alert severity="info" variant="filled" icon={<span>✨</span>} onClose={() => setNotify(null)}
+            sx={{ background: "linear-gradient(135deg,#39c6f5,#3a7bf0)", color: "#031426", fontWeight: 600 }}>
+            {notify}
+          </Alert>
+        ) : undefined}
+      </Snackbar>
       <Snackbar
         open={!!toast}
         autoHideDuration={3200}

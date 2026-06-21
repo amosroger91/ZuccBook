@@ -26,6 +26,7 @@ type Envelope =
   | { t: "presence"; d: RichPresence }
   | { t: "post"; d: Post }
   | { t: "dm"; d: ChatMessage }
+  | { t: "react"; d: { postId: string; emoji: string; from: string; fromName: string } }
   | { t: "hello"; d: { pk: string } };
 
 class PeerService {
@@ -41,6 +42,9 @@ class PeerService {
     if (this.started) return;
     this.started = true;
     presenceService.bindTransport((p) => this.send({ t: "presence", d: p }));
+    // Relay local reactions to the swarm (bus avoids a feed↔peer import cycle).
+    bus.on("feed:react-out", ({ postId, emoji }) =>
+      this.send({ t: "react", d: { postId, emoji, from: identityService.pk, fromName: identityService.current?.username ?? "Someone" } }));
     this.connect();
   }
 
@@ -76,6 +80,14 @@ class PeerService {
         break;
       case "dm":
         if (env.d.author !== identityService.pk) { await storage.putMessage(env.d); bus.emit("chat:message", env.d); }
+        if (this.isHub) this.broadcast(env, fromId);
+        break;
+      case "react":
+        if (env.d.from !== identityService.pk) {
+          const post = await storage.getPost(env.d.postId);
+          await feedService.applyReaction(env.d.postId, env.d.emoji, env.d.from);
+          if (post && post.author === identityService.pk) bus.emit("notify", { text: `${env.d.fromName} reacted ${env.d.emoji} to your post` });
+        }
         if (this.isHub) this.broadcast(env, fromId);
         break;
       case "hello": if (this.isHub) presenceService.announceSelf(); break;
