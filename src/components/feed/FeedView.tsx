@@ -207,7 +207,7 @@ export default function FeedView() {
               <Button fullWidth variant="outlined" size="small" startIcon={<AutoAwesomeRoundedIcon />} sx={{ mt: 1.5, textTransform: "none", fontWeight: 700 }} href="#/companion">Ask your Companion</Button>
             </Box>
           </GlassCard>
-          <GlassCard sx={{ mt: 2 }}>
+          <GlassCard sx={{ mt: "20px" }}>
             <Typography variant="overline" color="text.secondary">How this feed works</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
               Ranking runs <b>on this device</b> with a lightweight text-embedding (hashed word vectors) — instant and needs no download. It's <b>not</b> the chat LLM: your <b>Companion</b> is a separate full language model that auto-downloads and also runs locally. Tap the <b>insights</b> icon on any post to see exactly why it surfaced. Nothing is sent to a server.
