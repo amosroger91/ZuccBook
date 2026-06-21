@@ -43,7 +43,7 @@ class IdentityService {
     return me;
   }
 
-  async update(patch: Partial<Pick<Identity, "username" | "avatar" | "bio" | "header" | "html" | "location">>) {
+  async update(patch: Partial<Pick<Identity, "username" | "avatar" | "bio" | "header" | "html" | "location" | "quote" | "website" | "email" | "phone">>) {
     if (!this.me) return;
     this.me = { ...this.me, ...patch };
     await storage.saveIdentity(this.me);

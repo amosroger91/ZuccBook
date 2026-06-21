@@ -12,8 +12,12 @@ export interface Identity {
   avatar: string;           // data URL or generated gradient seed
   header?: string;          // profile banner photo (data URL)
   bio: string;
+  quote?: string;           // a short tagline/quote
   html?: string;            // MySpace-style custom profile HTML/CSS
   location?: string;        // optional, from the Geolocation API only
+  website?: string;
+  email?: string;           // optional
+  phone?: string;           // optional
   badges: string[];
   reputation: number;
   createdAt: number;
@@ -26,8 +30,12 @@ export interface Profile {
   avatar?: string;
   header?: string;
   bio?: string;
+  quote?: string;
   html?: string;
   location?: string;
+  website?: string;
+  email?: string;
+  phone?: string;
   badges: string[];
   reputation: number;
   communities: string[];    // names of communities they've joined
