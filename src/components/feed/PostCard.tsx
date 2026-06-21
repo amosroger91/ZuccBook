@@ -3,6 +3,8 @@ import { Stack, Box, Typography, IconButton, Chip, Popover, Tooltip, TextField, 
 import AddReactionRoundedIcon from "@mui/icons-material/AddReactionRounded";
 import VerifiedRoundedIcon from "@mui/icons-material/VerifiedRounded";
 import ReplyRoundedIcon from "@mui/icons-material/ReplyRounded";
+import ChatBubbleOutlineRoundedIcon from "@mui/icons-material/ChatBubbleOutlineRounded";
+import AddReactionOutlinedIcon from "@mui/icons-material/AddReactionOutlined";
 import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import PauseRoundedIcon from "@mui/icons-material/PauseRounded";
 import MoreVertRoundedIcon from "@mui/icons-material/MoreVertRounded";
@@ -189,12 +191,12 @@ function LinkCard({ url }: { url: string }) {
   useEffect(() => { let on = true; linkPreviewService.preview(url).then((p) => on && setD(p)).catch(() => {}); return () => { on = false; }; }, [url]);
   let host = url; try { host = new URL(url).hostname.replace(/^www\./, ""); } catch {}
   return (
-    <Box component="a" href={url} target="_blank" rel="noopener noreferrer" sx={{ display: "block", mt: 1, border: "1px solid var(--bl-line)", borderRadius: 1, overflow: "hidden", textDecoration: "none", color: "inherit", bgcolor: "var(--bl-white)" }}>
-      {d?.image && <Box component="img" src={d.image} loading="lazy" sx={{ width: "100%", maxHeight: 240, objectFit: "cover", display: "block" }} />}
-      <Box sx={{ p: 1 }}>
-        <Typography variant="caption" color="text.secondary">{d?.site || host}</Typography>
-        <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>{d?.title || host}</Typography>
-        {d?.description && <Typography variant="caption" color="text.secondary" sx={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{d.description}</Typography>}
+    <Box component="a" href={url} target="_blank" rel="noopener noreferrer" sx={{ display: "block", mt: 1.25, border: "1px solid var(--bl-line)", borderRadius: 2.5, overflow: "hidden", textDecoration: "none", color: "inherit", bgcolor: "var(--bl-white)", transition: "background .15s ease", "&:hover": { bgcolor: "rgba(58,155,240,0.04)" } }}>
+      {d?.image && <Box component="img" src={d.image} loading="lazy" sx={{ width: "100%", maxHeight: 260, objectFit: "cover", display: "block" }} />}
+      <Box sx={{ p: 1.25 }}>
+        <Typography variant="caption" sx={{ color: "text.secondary", textTransform: "uppercase", letterSpacing: 0.4, fontSize: 11 }}>{d?.site || host}</Typography>
+        <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.3, mt: 0.25, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{d?.title || host}</Typography>
+        {d?.description && <Typography variant="caption" color="text.secondary" sx={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", mt: 0.25 }}>{d.description}</Typography>}
       </Box>
     </Box>
   );
@@ -363,26 +365,31 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
     bus.emit("feed:updated", undefined); // re-evaluate the feed with the new trust signal
   }
 
-  const sourceColor = post.source === "self" ? "#54c95a" : post.source === "relay" || post.source === "peer" ? "#3f97ff" : "#7a85a8";
-
   return (
-    <GlassCard id={`post-${post.id}`} sx={{ mb: 1.5, scrollMarginTop: 70, transition: "box-shadow .4s ease", "&.zb-focus": { boxShadow: "0 0 0 3px rgba(58,155,240,0.7)" } }}>
-      <Stack direction="row" spacing={1.5}>
-        <Box onClick={visit} sx={{ cursor: canVisit ? "pointer" : "default" }}>
-          <UserAvatar pk={post.author} name={post.authorName} avatar={post.authorAvatar} />
+    <GlassCard id={`post-${post.id}`} sx={{ mb: 1.5, p: { xs: 1.5, sm: 2 }, scrollMarginTop: 70, transition: "box-shadow .25s ease, border-color .25s ease", "&:hover": { boxShadow: "0 4px 18px rgba(20,40,80,0.08)" }, "&.zb-focus": { boxShadow: "0 0 0 3px rgba(58,155,240,0.7)" } }}>
+      <Stack direction="row" spacing={1.25}>
+        <Box onClick={visit} sx={{ cursor: canVisit ? "pointer" : "default", flex: "0 0 auto" }}>
+          <UserAvatar pk={post.author} name={post.authorName} avatar={post.authorAvatar} size={44} />
         </Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <Typography onClick={visit} sx={{ fontWeight: 700, cursor: canVisit ? "pointer" : "default", "&:hover": canVisit ? { textDecoration: "underline" } : {} }} noWrap>{post.authorName}</Typography>
-            {post.author === "rss-bot"
-              ? <Chip size="small" label="BOT" sx={{ height: 16, fontSize: 9, bgcolor: "rgba(58,123,240,0.2)", color: "#0a55cf" }} />
-              : <Tooltip title="Cryptographically signed by author"><VerifiedRoundedIcon sx={{ fontSize: 15, color: "#3f97ff" }} /></Tooltip>}
-            <Typography variant="caption" color="text.secondary">· {relativeTime(post.createdAt)}</Typography>
-            <Box sx={{ flex: 1 }} />
-            <Chip size="small" label={post.source} sx={{ height: 18, fontSize: 10, color: sourceColor, borderColor: sourceColor }} variant="outlined" />
-            {verdict && verdict.action !== "allow" && <ModInfo verdict={verdict} />}
+          {/* identity line — name + badge, with a muted meta subline underneath */}
+          <Stack direction="row" alignItems="flex-start" spacing={0.5}>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Stack direction="row" alignItems="center" spacing={0.5}>
+                <Typography onClick={visit} sx={{ fontWeight: 700, fontSize: 15, lineHeight: 1.2, cursor: canVisit ? "pointer" : "default", "&:hover": canVisit ? { textDecoration: "underline" } : {} }} noWrap>{post.authorName}</Typography>
+                {post.author === "rss-bot"
+                  ? <Chip size="small" label="BOT" sx={{ height: 15, fontSize: 9, fontWeight: 700, "& .MuiChip-label": { px: 0.6 }, bgcolor: "rgba(58,123,240,0.14)", color: "#0a55cf" }} />
+                  : <Tooltip title="Cryptographically signed by author"><VerifiedRoundedIcon sx={{ fontSize: 15, color: "#3f97ff" }} /></Tooltip>}
+                {verdict && verdict.action !== "allow" && <ModInfo verdict={verdict} />}
+              </Stack>
+              <Tooltip title={new Date(post.createdAt).toLocaleString()} placement="bottom-start">
+                <Typography component="span" variant="caption" color="text.secondary" sx={{ display: "inline-block", lineHeight: 1.3, fontSize: 12 }}>
+                  {relativeTime(post.createdAt)}{post.author === "rss-bot" && post.tags[0] ? ` · #${post.tags[0]}` : ""}
+                </Typography>
+              </Tooltip>
+            </Box>
             <WhyRecommended reason={reason} />
-            {canVisit && <IconButton size="small" onClick={(e) => setAuthMenu(e.currentTarget)}><MoreVertRoundedIcon fontSize="small" /></IconButton>}
+            <IconButton size="small" sx={{ mt: -0.25, color: "text.disabled" }} onClick={(e) => setAuthMenu(e.currentTarget)}><MoreVertRoundedIcon fontSize="small" /></IconButton>
           </Stack>
 
           {restricted && !revealed && (
@@ -394,7 +401,7 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
           )}
 
           {(!restricted || revealed) && (<>
-          {post.text && <Typography component="div" sx={{ mt: 0.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{renderText(post.text)}</Typography>}
+          {post.text && <Typography component="div" sx={{ mt: 1, fontSize: 15, lineHeight: 1.55, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{renderText(post.text)}</Typography>}
 
           {(() => {
             const ytId = firstYouTube(post.text ?? "");
@@ -409,9 +416,7 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
 
           {post.media?.filter((m) => m.type === "audio").map((m, i) => <AudioCard key={i} url={m.url} title={m.alt || "Audio track"} />)}
 
-          {showFactChecks && (factCheck
-            ? <FactCheckCard fc={factCheck} postId={post.id} title={(post.text ?? "").split("\n")[0]} onChange={setFactCheck} />
-            : <Button size="small" startIcon={<FactCheckRoundedIcon fontSize="small" />} disabled={fcBusy} onClick={runFactCheck} sx={{ mt: 0.5, color: "text.secondary" }}>{fcBusy ? "Checking…" : "Fact-check this"}</Button>)}
+          {showFactChecks && factCheck && <FactCheckCard fc={factCheck} postId={post.id} title={(post.text ?? "").split("\n")[0]} onChange={setFactCheck} />}
 
           {post.poll && (
             <Stack spacing={0.5} sx={{ mt: 1 }}>
@@ -424,16 +429,35 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
             </Stack>
           )}
 
-          {post.tags.length > 0 && (
-            <Stack direction="row" spacing={0.5} sx={{ mt: 1, flexWrap: "wrap", gap: 0.5 }}>
-              {post.tags.map((t) => <Chip key={t} size="small" label={"#" + t} sx={{ bgcolor: "rgba(58,123,240,0.12)", color: "#1668e0" }} />)}
-            </Stack>
+          {/* hashtags — understated inline links, not loud chips */}
+          {post.author !== "rss-bot" && post.tags.length > 0 && (
+            <Box sx={{ mt: 0.75, display: "flex", flexWrap: "wrap", gap: 1 }}>
+              {post.tags.map((t) => <Typography key={t} component="span" variant="body2" sx={{ color: "#3f7bd0", fontWeight: 600, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}>#{t}</Typography>)}
+            </Box>
           )}
 
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 0.5 }}>
-            <Box sx={{ flex: 1 }}><ReactRow post={post} me={mePk} onAdd={(el, id) => setReact({ el, id })} /></Box>
-            <Button size="small" startIcon={<ReplyRoundedIcon fontSize="small" />} onClick={() => setShowReplies((v) => !v)} sx={{ color: "text.secondary", flex: "0 0 auto" }}>
-              {replies.length ? `${replies.length} ` : ""}Reply
+          {/* reaction summary (who reacted) — Facebook-style, above the action bar */}
+          {Object.values(post.reactions).some((v) => v.length) && (
+            <Box sx={{ mt: 1.25, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+              {Object.entries(post.reactions).filter(([, v]) => v.length).map(([emoji, voters]) => (
+                <Chip key={emoji} size="small" label={`${emoji} ${voters.length}`} onClick={() => feedService.react(post.id, emoji)}
+                  sx={{ height: 26, fontSize: 13, cursor: "pointer", border: voters.includes(mePk) ? "1px solid rgba(58,155,240,0.5)" : "1px solid transparent",
+                    bgcolor: voters.includes(mePk) ? "rgba(58,155,240,0.14)" : "rgba(0,0,0,0.045)", "& .MuiChip-label": { px: 1 }, "&:hover": { bgcolor: "rgba(58,155,240,0.12)" } }} />
+              ))}
+            </Box>
+          )}
+
+          {/* action bar — clean, evenly split, hover-highlighted (Twitter × Facebook) */}
+          <Stack direction="row" spacing={0.5} sx={{ mt: 1, pt: 0.75, borderTop: "1px solid var(--bl-line)" }}>
+            <Button fullWidth disableRipple onClick={(e) => setReact({ el: e.currentTarget, id: post.id })}
+              startIcon={<AddReactionOutlinedIcon sx={{ fontSize: 19 }} />}
+              sx={{ flex: 1, color: "text.secondary", fontWeight: 600, fontSize: 13.5, textTransform: "none", py: 0.7, borderRadius: 2, "&:hover": { bgcolor: "rgba(58,155,240,0.09)", color: "#1668e0" } }}>
+              React
+            </Button>
+            <Button fullWidth disableRipple onClick={() => setShowReplies((v) => !v)}
+              startIcon={<ChatBubbleOutlineRoundedIcon sx={{ fontSize: 18 }} />}
+              sx={{ flex: 1, color: showReplies ? "#1668e0" : "text.secondary", fontWeight: 600, fontSize: 13.5, textTransform: "none", py: 0.7, borderRadius: 2, "&:hover": { bgcolor: "rgba(58,155,240,0.09)", color: "#1668e0" } }}>
+              {replies.length ? `${replies.length} ${replies.length === 1 ? "Comment" : "Comments"}` : "Comment"}
             </Button>
           </Stack>
 
@@ -450,10 +474,11 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
       </Stack>
 
       <Menu open={!!authMenu} anchorEl={authMenu} onClose={() => setAuthMenu(null)}>
-        <MenuItem onClick={() => trust("vouch")}>🤝 Vouch for {post.authorName}</MenuItem>
-        <MenuItem onClick={() => trust("report")}>🚩 Report</MenuItem>
-        <MenuItem onClick={() => trust("mute")}>🔇 Mute — hide from your feed</MenuItem>
-        <MenuItem onClick={() => { setAuthMenu(null); visit(); }}>👤 View profile</MenuItem>
+        {showFactChecks && !factCheck && <MenuItem disabled={fcBusy} onClick={() => { setAuthMenu(null); runFactCheck(); }}>🔎 {fcBusy ? "Checking…" : "Fact-check this"}</MenuItem>}
+        {canVisit && <MenuItem onClick={() => trust("vouch")}>🤝 Vouch for {post.authorName}</MenuItem>}
+        {canVisit && <MenuItem onClick={() => trust("report")}>🚩 Report</MenuItem>}
+        {canVisit && <MenuItem onClick={() => trust("mute")}>🔇 Mute — hide from your feed</MenuItem>}
+        {canVisit && <MenuItem onClick={() => { setAuthMenu(null); visit(); }}>👤 View profile</MenuItem>}
       </Menu>
 
       <Popover open={!!react} anchorEl={react?.el} onClose={() => setReact(null)}>
