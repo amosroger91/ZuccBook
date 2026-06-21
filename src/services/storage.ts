@@ -79,6 +79,7 @@ export const storage = {
   /* ---------- communities ---------- */
   async putCommunity(c: Community) { (await db()).put("communities", c); },
   async communities(): Promise<Community[]> { return (await db()).getAll("communities"); },
+  async deleteCommunity(id: string) { (await db()).delete("communities", id); },
 
   /* ---------- reputation ---------- */
   async addReputation(e: ReputationLedgerEntry) { (await db()).put("reputation", e); },

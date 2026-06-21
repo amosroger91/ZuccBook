@@ -58,6 +58,22 @@ class CommunityService {
     return c;
   }
 
+  async leave(id: string) {
+    const all = await storage.communities();
+    const c = all.find((x) => x.id === id);
+    if (c) { c.members = c.members.filter((m) => m !== identityService.pk); await storage.putCommunity(c); }
+    return c;
+  }
+
+  async update(id: string, fields: Partial<Pick<Community, "name" | "description" | "icon" | "visibility">>) {
+    const all = await storage.communities();
+    const c = all.find((x) => x.id === id);
+    if (c) { Object.assign(c, fields); await storage.putCommunity(c); }
+    return c;
+  }
+
+  async remove(id: string) { await storage.deleteCommunity(id); }
+
   async addChannel(id: string, name: string, kind: Channel["kind"]) {
     const all = await storage.communities();
     const c = all.find((x) => x.id === id);

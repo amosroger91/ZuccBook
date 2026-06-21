@@ -25,8 +25,8 @@ import PresenceList from "@/components/layout/PresenceList";
 
 const NAV = [
   { to: "/", label: "Feed", icon: <HomeRoundedIcon /> },
-  { to: "/communities", label: "Communities", icon: <GroupsRoundedIcon /> },
-  { to: "/messages", label: "Messages", icon: <ChatRoundedIcon /> },
+  { to: "/communities", label: "Groups", icon: <GroupsRoundedIcon /> },
+  { to: "/messages", label: "Town Square", icon: <ChatRoundedIcon /> },
   { to: "/chatroom", label: "Chatroom", icon: <ForumRoundedIcon /> },
   { to: "/listen", label: "Watch & Listen", icon: <HeadphonesRoundedIcon /> },
   { to: "/companion", label: "Companion", icon: <AutoAwesomeRoundedIcon /> },
