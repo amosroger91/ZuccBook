@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Box, Stack, Typography, TextField, Button, Chip, MenuItem, Grid, Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
+import { Box, Stack, Typography, TextField, Button, Chip, MenuItem, Grid, Dialog, DialogTitle, DialogContent, DialogActions, Alert } from "@mui/material";
 import GlassCard from "@/components/common/GlassCard";
 import UserAvatar from "@/components/common/UserAvatar";
 import { marketplaceService } from "@/services/marketplaceService";
@@ -48,6 +48,10 @@ export default function MarketView() {
         </Box>
         <Button variant="outlined" onClick={() => nav("/wallet")}>Wallet</Button>
       </Stack>
+
+      <Alert severity="warning" sx={{ mb: 2 }}>
+        Payments are <b>peer-to-peer and final</b> — there's <b>no escrow and no refunds</b>. A listing is a request to pay a stranger's wallet; nothing guarantees you'll receive the item. Only buy from people you trust. ZuccBook is <b>not responsible for any loss, fraud, or damages</b> — use at your own risk.
+      </Alert>
 
       <GlassCard sx={{ mb: 2 }}>
         <Typography variant="overline" color="text.secondary">Sell an item</Typography>

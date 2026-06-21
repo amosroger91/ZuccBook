@@ -100,6 +100,11 @@ export const TOPIC_FEEDS: Record<string, Feed[]> = {
   // ---- GitHub releases (native .atom) ----
   "GitHub Releases": [github("ollama/ollama"), github("microsoft/vscode"), github("facebook/react"), github("vercel/next.js"), github("denoland/deno")],
 
+  // ---- Faith ----
+  "Daily Verse": [
+    { url: "https://www.biblegateway.com/votd/get/?format=atom&version=9", name: "Bible Gateway — Verse of the Day" },
+  ],
+
   // ---- 3D printing ----
   "3D Printing": [
     { url: "https://cults3d.com/en/creations/feed", name: "Cults3D — latest creations" },

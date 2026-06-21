@@ -18,7 +18,7 @@ export default function WalletView() {
   const [sending, setSending] = useState(false);
   const [showKey, setShowKey] = useState("");
 
-  const refresh = () => { setBusy(true); walletService.balances().then(setBal).catch(() => toast("Couldn't reach Polygon RPC", "warn")).finally(() => setBusy(false)); };
+  const refresh = () => { setBusy(true); walletService.balances().then(setBal).catch(() => toast("Polygon network busy — tap refresh to retry", "warn")).finally(() => setBusy(false)); };
   useEffect(() => { walletService.address().then(setAddress); refresh(); }, []);
 
   function copy(text: string) { navigator.clipboard?.writeText(text); toast("Copied", "success"); }
@@ -48,7 +48,12 @@ export default function WalletView() {
       <Typography variant="h5">Wallet</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Your self-custody wallet on {CHAIN.name}. Send & receive MATIC and USDC — no bank, no middleman.</Typography>
 
-      <Alert severity="warning" sx={{ mb: 2 }}>This is a hot <b>burner wallet</b> stored in this browser. Keep only small amounts and export your key to back it up.</Alert>
+      <Alert severity="warning" sx={{ mb: 2 }}>
+        <b>Real money, real risk.</b> This is a hot <b>burner wallet</b> whose private key is stored in this browser — anyone with access to this device (or who clears site data without a backup) can lose the funds. Keep only small amounts and <b>export your key</b> to back it up.
+      </Alert>
+      <Alert severity="error" sx={{ mb: 2 }}>
+        Transactions on Polygon are <b>permanent and irreversible</b>. ZuccBook is non-custodial software provided <b>“as is”</b>, with <b>no warranty</b> — it never holds your keys or funds. <b>You alone are responsible for your funds and transactions.</b> ZuccBook and its authors are <b>not liable for any loss, theft, failed transaction, scam, or damages</b>. Nothing here is financial advice. Crypto is volatile and risky.
+      </Alert>
 
       <GlassCard sx={{ mb: 2 }}>
         <Typography variant="overline" color="text.secondary">Balance</Typography>

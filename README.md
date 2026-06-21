@@ -56,6 +56,12 @@ alive. (Yes, it's called *ZuccBook*. Yes, that's the joke.) 😄
   and posts the headline, summary, link, and time. Stories you "missed" while away
   backfill into the timeline at their real publish time.
 - **Communities** — Discord/Reddit-style servers with text/voice/stage/event channels.
+- **Wallet & Market (Polygon)** — a self-custody Polygon wallet (send/receive MATIC
+  & USDC) and a marketplace where buying pays the seller on-chain, peer-to-peer.
+  Pay anyone from their profile. **Real money — see the risk note below.**
+- **Topics / RSS Bot** — subscribe to topics (news, tech, YouTube channels,
+  podcasts, Reddit, GitHub releases, CVEs, local news, 3D printing, daily Bible
+  verse…) and a bot keeps your feed alive with the latest. Add your own feeds.
 - **Profiles** — display name + uploadable photo, stored locally and shared peer-to-peer.
 - **Reputation, not followers** — helpfulness/expertise/participation/trust, with ranks & badges.
 - **Layered local moderation** — pick a filter profile (Family-Friendly → Unfiltered); it runs locally.
@@ -101,6 +107,19 @@ npm run build      # -> dist/  (static files)
 Push `dist/` to a `gh-pages` branch (or any static host / IPFS / a USB stick) and
 it's live. `base: "./"` + HashRouter mean it runs from any path with no server
 config. The repo hosts itself.
+
+## ⚠️ Money & risk (please read)
+
+The Wallet/Market move **real funds on Polygon**. ZuccBook is **non-custodial,
+open-source software provided “as is”, with no warranty** — it never holds your
+keys or your money. The wallet is a **hot burner wallet** whose private key lives
+in your browser; if you lose the device or clear site data without exporting the
+key, the funds are **gone**. Blockchain transactions are **permanent and
+irreversible**. The marketplace is **peer-to-peer with no escrow and no refunds** —
+paying a listing sends money to a stranger with no guarantee of delivery. **You
+alone are responsible for your funds and transactions. The authors are not liable
+for any loss, theft, failed transaction, scam, or damages. Nothing here is
+financial advice.** Only use small amounts you can afford to lose.
 
 ## Honest limits
 

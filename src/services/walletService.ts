@@ -9,7 +9,14 @@
 import { JsonRpcProvider, Wallet, Contract, formatEther, parseEther, formatUnits, parseUnits, isAddress } from "ethers";
 import { storage } from "./storage";
 
-const RPC = "https://polygon-rpc.com";
+// Keyless, CORS-enabled public Polygon RPCs (verified to work from a browser),
+// tried in order with failover. (polygon-rpc.com now 401s; llamarpc/ankr lack
+// browser CORS or need a key — omitted.)
+const RPCS = [
+  "https://polygon-bor-rpc.publicnode.com",
+  "https://1rpc.io/matic",
+  "https://polygon.drpc.org",
+];
 export const CHAIN = { id: 137, name: "Polygon", explorer: "https://polygonscan.com" };
 const USDC = "0x3c499c542cEF5E3811e1192ce70d8cc03d5c3359"; // native USDC on Polygon (6 decimals)
 const ERC20 = [
@@ -18,15 +25,33 @@ const ERC20 = [
 ];
 
 let provider: JsonRpcProvider | null = null;
-let wallet: Wallet | null = null;
+let pkCache: string | null = null;
 
-async function ensure(): Promise<Wallet> {
-  if (wallet) return wallet;
-  provider = new JsonRpcProvider(RPC, CHAIN.id);
+async function loadPk(): Promise<string> {
+  if (pkCache) return pkCache;
   let pk = await storage.kvGet<string>("wallet:pk");
   if (!pk) { pk = Wallet.createRandom().privateKey; await storage.kvSet("wallet:pk", pk); }
-  wallet = new Wallet(pk, provider);
-  return wallet;
+  pkCache = pk;
+  return pk;
+}
+
+// Find a reachable RPC (probes each; first that answers wins). `force` re-probes.
+async function getProvider(force = false): Promise<JsonRpcProvider> {
+  if (provider && !force) return provider;
+  let lastErr: unknown;
+  for (const url of RPCS) {
+    try {
+      const p = new JsonRpcProvider(url, CHAIN.id, { staticNetwork: true });
+      await p.getBlockNumber();          // probe (also confirms CORS works)
+      provider = p;
+      return p;
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr ?? new Error("No reachable Polygon RPC");
+}
+
+async function signer(): Promise<Wallet> {
+  return new Wallet(await loadPk(), await getProvider());
 }
 
 export type Currency = "MATIC" | "USDC";
@@ -35,20 +60,25 @@ class WalletService {
   isValidAddress = isAddress;
   explorerTx(hash: string) { return `${CHAIN.explorer}/tx/${hash}`; }
 
-  async address(): Promise<string> { return (await ensure()).address; }
+  /** Address derives from the key alone — no RPC needed (so it always shows). */
+  async address(): Promise<string> { return new Wallet(await loadPk()).address; }
 
   async balances(): Promise<{ matic: string; usdc: string }> {
-    const w = await ensure();
-    const matic = await provider!.getBalance(w.address);
-    let usdc = 0n;
-    try { usdc = await new Contract(USDC, ERC20, provider!).balanceOf(w.address); } catch {}
-    return { matic: Number(formatEther(matic)).toFixed(4), usdc: Number(formatUnits(usdc, 6)).toFixed(2) };
+    const addr = await this.address();
+    const read = async (p: JsonRpcProvider) => {
+      const matic = await p.getBalance(addr);
+      let usdc = 0n;
+      try { usdc = await new Contract(USDC, ERC20, p).balanceOf(addr); } catch {}
+      return { matic: Number(formatEther(matic)).toFixed(4), usdc: Number(formatUnits(usdc, 6)).toFixed(2) };
+    };
+    try { return await read(await getProvider()); }
+    catch { return await read(await getProvider(true)); }  // rotate to another RPC and retry
   }
 
   /** Send MATIC or USDC. Returns the tx hash. Throws on failure. */
   async send(to: string, amount: string, currency: Currency): Promise<string> {
     if (!isAddress(to)) throw new Error("Invalid address");
-    const w = await ensure();
+    const w = await signer();
     if (currency === "USDC") {
       const tx = await new Contract(USDC, ERC20, w).transfer(to, parseUnits(amount, 6));
       return tx.hash;
@@ -57,12 +87,11 @@ class WalletService {
     return tx.hash;
   }
 
-  async exportKey(): Promise<string> { return (await ensure()).privateKey; }
+  async exportKey(): Promise<string> { return new Wallet(await loadPk()).privateKey; }
   async importKey(pk: string): Promise<string> {
-    const p = new JsonRpcProvider(RPC, CHAIN.id);
-    const w = new Wallet(pk.trim(), p);
+    const w = new Wallet(pk.trim());
     await storage.kvSet("wallet:pk", w.privateKey);
-    wallet = w; provider = p;
+    pkCache = w.privateKey;
     return w.address;
   }
 }
