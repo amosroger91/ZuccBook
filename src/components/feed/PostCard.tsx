@@ -420,9 +420,11 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Stack direction="row" alignItems="center" spacing={0.5}>
                 <Typography onClick={visit} sx={{ fontWeight: 700, fontSize: 15, lineHeight: 1.2, cursor: canVisit ? "pointer" : "default", "&:hover": canVisit ? { textDecoration: "underline" } : {} }} noWrap>{post.authorName}</Typography>
-                {post.author === "rss-bot"
+                {post.author === "rss-bot" || post.author === "system"
                   ? <Chip size="small" label="BOT" sx={{ height: 15, fontSize: 9, fontWeight: 700, "& .MuiChip-label": { px: 0.6 }, bgcolor: "rgba(58,123,240,0.14)", color: "#0a55cf" }} />
-                  : <Tooltip title="Cryptographically signed by author"><VerifiedRoundedIcon sx={{ fontSize: 15, color: "#3f97ff" }} /></Tooltip>}
+                  : post.sig
+                    ? <Tooltip title="Cryptographically signed by author — verified on arrival"><VerifiedRoundedIcon sx={{ fontSize: 15, color: "#3f97ff" }} /></Tooltip>
+                    : <Tooltip title="Unsigned (legacy post) — authorship not verified"><VerifiedRoundedIcon sx={{ fontSize: 15, color: "rgba(0,0,0,0.22)" }} /></Tooltip>}
                 {verdict && verdict.action !== "allow" && <ModInfo verdict={verdict} />}
               </Stack>
               <Tooltip title={new Date(post.createdAt).toLocaleString()} placement="bottom-start">

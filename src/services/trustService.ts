@@ -7,6 +7,7 @@
 // ============================================================
 import type { TrustEdge, TrustKind } from "@/types";
 import { bus } from "@/lib/events";
+import { signTrust, trustIsAuthentic } from "@/lib/records";
 import { identityService } from "./identityService";
 import { storage } from "./storage";
 
@@ -24,11 +25,12 @@ class TrustService {
     for (const e of mine) edges.set(key(e), e);
   }
 
-  ingest(e: TrustEdge) {
+  async ingest(e: TrustEdge) {
     if (!e || !e.from || !e.to) return;
     const k = key(e);
     const prev = edges.get(k);
     if (prev && prev.at >= e.at) return;
+    if (!(await trustIsAuthentic(e))) return;   // can't forge someone else's vouch/block
     edges.set(k, e);
     bus.emit("trust:update", e);
   }
@@ -42,6 +44,8 @@ class TrustService {
     const me = identityService.pk;
     if (!me || to === me) return;
     const e: TrustEdge = { from: me, to, kind, community: opts.community, reason: opts.reason, at: Date.now() };
+    const secret = identityService.current;
+    if (secret) await signTrust(e, secret.privateKeyJwk);
     edges.set(key(e), e);
     await this.persistMine();
     bus.emit("trust:publish", e);

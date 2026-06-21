@@ -5,6 +5,7 @@
 // ============================================================
 import type { Listing } from "@/types";
 import { bus } from "@/lib/events";
+import { signListing, listingIsAuthentic } from "@/lib/records";
 import { identityService } from "./identityService";
 import { walletService, type Currency } from "./walletService";
 import { newId } from "@/lib/id";
@@ -14,10 +15,13 @@ const cache = new Map<string, Listing>();
 class MarketplaceService {
   list(): Listing[] { return [...cache.values()].sort((a, b) => b.createdAt - a.createdAt); }
 
-  ingest(l: Listing) {
+  async ingest(l: Listing) {
     if (!l || !l.id) return;
     const prev = cache.get(l.id);
     if (prev && prev.createdAt > l.createdAt && !l.sold) return;
+    // Verify the seller's signature — the listing carries a Polygon payout
+    // address a buyer will pay, so a forged listing must never be shown.
+    if (!(await listingIsAuthentic(l))) return;
     cache.set(l.id, l);
     bus.emit("market:update", l);
   }
@@ -36,6 +40,7 @@ class MarketplaceService {
       price: input.price,
       createdAt: Date.now(),
     };
+    await signListing(listing, me.privateKeyJwk);
     cache.set(listing.id, listing);
     bus.emit("market:publish", listing);
     return listing;
@@ -44,7 +49,9 @@ class MarketplaceService {
   /** Pay the seller on Polygon, then mark the listing sold. Returns tx hash. */
   async buy(listing: Listing): Promise<string> {
     const hash = await walletService.send(listing.sellerAddress, listing.price, listing.currency as Currency);
-    const sold: Listing = { ...listing, sold: true, soldTo: identityService.pk, createdAt: Date.now() };
+    // Keep the seller's signed fields (incl. createdAt) intact so their
+    // signature still verifies; `sold`/`soldTo` are outside the signed payload.
+    const sold: Listing = { ...listing, sold: true, soldTo: identityService.pk };
     cache.set(listing.id, sold);
     bus.emit("market:publish", sold);
     return hash;
@@ -52,7 +59,7 @@ class MarketplaceService {
 
   remove(id: string) {
     const l = cache.get(id);
-    if (l) { const gone = { ...l, sold: true, createdAt: Date.now() }; cache.set(id, gone); bus.emit("market:publish", gone); }
+    if (l) { const gone = { ...l, sold: true }; cache.set(id, gone); bus.emit("market:publish", gone); }
   }
 }
 

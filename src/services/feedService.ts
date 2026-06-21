@@ -14,6 +14,7 @@ import { reputationService } from "./reputationService";
 import { profileService } from "./profileService";
 import { trustService } from "./trustService";
 import { embed, cosine, topTerms, InterestProfile } from "@/lib/embeddings";
+import { signPost, postIsAuthentic } from "@/lib/records";
 import { bus } from "@/lib/events";
 import { newId } from "@/lib/id";
 import type { ModerationProfile } from "@/types";
@@ -58,8 +59,10 @@ class FeedService {
       embedding: embed([text, ...(input.tags ?? [])].join(" ")),
       source: "self",
     };
-    // sign (envelope kept for relay/verify; we store the plain post locally)
-    await identityService.sign(post);
+    // Sign the authored content and attach the detached signature to the post
+    // itself, so it travels with it over Gun/PeerJS and every recipient can
+    // verify it came from this public key (see lib/records.ts).
+    await signPost(post, me.privateKeyJwk);
     await storage.putPost(post);
     await reputationService.award("participation", 2, "created a post");
     bus.emit("feed:post", post);
@@ -68,8 +71,12 @@ class FeedService {
     return post;
   }
 
-  /** Ingest a post received from a peer/relay (verified upstream). */
+  /** Ingest a post received from a peer/relay. Verifies the signature first —
+   *  a forged or tampered post (wrong/missing signature for a real author) is
+   *  dropped here, before it can reach storage or the feed. Bot authors
+   *  (rss-bot/system) carry no keypair and are exempt. */
   async ingest(post: Post) {
+    if (!(await postIsAuthentic(post))) return;
     if (await storage.getPost(post.id)) return;
     post.embedding ??= embed([post.text ?? "", ...post.tags].join(" "));
     await storage.putPost(post);
@@ -90,6 +97,7 @@ class FeedService {
    *  any reactions we don't have yet. Never re-publishes (avoids sync loops). */
   async absorb(post: Post) {
     if (!post || !post.id) return;
+    if (!(await postIsAuthentic(post))) return;   // never trust an unsigned/forged copy
     const existing = await storage.getPost(post.id);
     if (!existing) {
       post.embedding ??= embed([post.text ?? "", ...(post.tags ?? [])].join(" "));
@@ -121,6 +129,7 @@ class FeedService {
     let changed = 0;
     for (const post of posts) {
       if (!post?.id) continue;
+      if (!(await postIsAuthentic(post))) continue;   // drop forged/unsigned history
       const existing = await storage.getPost(post.id);
       if (!existing) {
         post.embedding ??= embed([post.text ?? "", ...(post.tags ?? [])].join(" "));

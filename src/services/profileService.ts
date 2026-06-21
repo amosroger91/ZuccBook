@@ -7,6 +7,7 @@
 // ============================================================
 import type { Profile } from "@/types";
 import { bus } from "@/lib/events";
+import { signProfile, profileIsAuthentic } from "@/lib/records";
 import { identityService } from "./identityService";
 import { reputationService } from "./reputationService";
 import { communityService } from "./communityService";
@@ -17,11 +18,14 @@ const cache = new Map<string, Profile>();
 class ProfileService {
   get(pk: string): Profile | null { return cache.get(pk) ?? null; }
 
-  /** A profile arrived from the graph (Gun). */
-  ingest(p: Profile) {
+  /** A profile arrived from the graph (Gun). Verify the signature before
+   *  caching it — otherwise anyone could publish a profile under your pk and
+   *  change the name/avatar/wallet address others see for you. */
+  async ingest(p: Profile) {
     if (!p || !p.pk) return;
     const prev = cache.get(p.pk);
     if (prev && (prev.updatedAt ?? 0) >= (p.updatedAt ?? 0)) return;
+    if (!(await profileIsAuthentic(p))) return;
     cache.set(p.pk, p);
     bus.emit("profile:update", p);
   }
@@ -55,10 +59,14 @@ class ProfileService {
     };
   }
 
-  /** Publish my profile to the graph + local cache. */
+  /** Publish my profile to the graph + local cache (signed, so peers can verify it). */
   async publishSelf() {
     const p = await this.buildSelf();
-    if (p) { cache.set(p.pk, p); bus.emit("profile:publish", p); }
+    if (!p) return;
+    const me = identityService.current;
+    if (me) await signProfile(p, me.privateKeyJwk);
+    cache.set(p.pk, p);
+    bus.emit("profile:publish", p);
   }
 }
 

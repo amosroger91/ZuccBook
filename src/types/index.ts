@@ -41,6 +41,7 @@ export interface Profile {
   communities: string[];    // names of communities they've joined
   walletAddress?: string;   // Polygon address, so others can pay you
   updatedAt: number;
+  sig?: string;             // signature over the profile, verified on ingest
 }
 
 /** A marketplace listing. Buying pays the seller's Polygon address directly. */
@@ -57,6 +58,7 @@ export interface Listing {
   createdAt: number;
   sold?: boolean;
   soldTo?: string;          // buyer pk
+  sig?: string;             // seller's signature over the listing, verified on ingest
 }
 
 /** The private half, kept only on this device (never transmitted). */
@@ -107,6 +109,9 @@ export interface Post {
   embedding?: number[];
   // provenance: how this record reached us
   source: "self" | "peer" | "relay" | "cache";
+  // detached ECDSA signature over the authored content (see lib/records.ts).
+  // Verified at every ingest boundary; a forged post fails and is dropped.
+  sig?: string;
 }
 
 export type AlertKind = "reply" | "reaction" | "dm" | "watch" | "info";
@@ -243,6 +248,7 @@ export interface TrustEdge {
   community?: string;       // scope to a community (contextual trust)
   reason?: string;
   at: number;
+  sig?: string;             // signature over the edge by `from`, verified on ingest
 }
 
 // A community's own moderation values — it adapts the agent, not a global rule.
