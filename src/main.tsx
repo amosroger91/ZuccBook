@@ -16,6 +16,12 @@ window.addEventListener("unhandledrejection", (e) => {
   if (/popErrorScope|Instance dropped|external Instance|GPUDevice|device lost|WebGPU/i.test(msg)) e.preventDefault();
 });
 
+// Always open on the home feed — ignore a stale route hash left over from a
+// previous session so a fresh load lands on the timeline, not /wallet, /settings, etc.
+if (location.hash && location.hash !== "#/" && location.hash !== "#") {
+  history.replaceState(null, "", `${location.pathname}${location.search}#/`);
+}
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ThemeProvider theme={theme}>
