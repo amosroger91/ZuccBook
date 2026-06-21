@@ -10,10 +10,28 @@ export interface Identity {
   publicKey: string;        // base64url SPKI — the canonical user id
   username: string;
   avatar: string;           // data URL or generated gradient seed
+  header?: string;          // profile banner photo (data URL)
   bio: string;
+  html?: string;            // MySpace-style custom profile HTML/CSS
+  location?: string;        // optional, from the Geolocation API only
   badges: string[];
   reputation: number;
   createdAt: number;
+}
+
+/** The public, shareable profile synced to other people via Gun. */
+export interface Profile {
+  pk: string;
+  username: string;
+  avatar?: string;
+  header?: string;
+  bio?: string;
+  html?: string;
+  location?: string;
+  badges: string[];
+  reputation: number;
+  communities: string[];    // names of communities they've joined
+  updatedAt: number;
 }
 
 /** The private half, kept only on this device (never transmitted). */

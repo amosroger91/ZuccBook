@@ -13,6 +13,7 @@ import { presenceService } from "./presenceService";
 import { peerService } from "./peerService";
 import { rssService } from "./rssService";
 import { gunService } from "./gunService";
+import { profileService } from "./profileService";
 import type { AppSettings } from "@/types";
 
 export interface BootResult { onboarded: boolean; settings: AppSettings }
@@ -34,8 +35,9 @@ export async function boot(): Promise<BootResult> {
   if (me) {
     presenceService.setStatus(settings.presenceStatus);
     await communityService.seedDefaults();
-    gunService.start();   // durable cross-user persistence + sync (posts, swarm)
+    gunService.start();   // durable cross-user persistence + sync (posts, swarm, profiles)
     peerService.start();
+    profileService.publishSelf().catch(() => {}); // share my public profile
     rssService.refresh().catch(() => {}); // fire-and-forget; throttled internally
     // Keep topping up while the app is open so new stories arrive during a
     // session; the service throttles actual fetches.

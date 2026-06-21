@@ -15,8 +15,9 @@
 import Gun from "gun";
 import { bus } from "@/lib/events";
 import { feedService } from "./feedService";
+import { profileService } from "./profileService";
 import { storage } from "./storage";
-import type { ChatMessage, Post } from "@/types";
+import type { ChatMessage, Post, Profile } from "@/types";
 
 // Public Gun relay peers (best-effort; Gun also keeps a local copy and
 // reconciles when a relay is reachable).
@@ -55,9 +56,15 @@ class GunService {
         } catch {}
       });
 
+      // Incoming public profiles → cache for viewing others' pages.
+      gun.get(ROOT).get("profiles").map().on((d: any) => {
+        if (d?.json) { try { profileService.ingest(JSON.parse(d.json) as Profile); } catch {} }
+      });
+
       // Outgoing: publish whatever the app marks for persistence.
       bus.on("post:publish", (p) => this.putPost(p));
       bus.on("swarm:publish", (m) => { seenSwarm.add(m.id); this.putSwarm(m); });
+      bus.on("profile:publish", (p) => { try { gun?.get(ROOT).get("profiles").get(p.pk).put({ json: JSON.stringify(p) }); } catch {} });
     } catch (e) {
       console.warn("[gun] disabled (init failed)", e);
       gun = null;

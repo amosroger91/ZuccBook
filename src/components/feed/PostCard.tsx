@@ -11,6 +11,7 @@ import UserAvatar from "@/components/common/UserAvatar";
 import { relativeTime } from "@/lib/time";
 import { feedService } from "@/services/feedService";
 import { peerService } from "@/services/peerService";
+import { useNavigate } from "react-router-dom";
 import { useStore } from "@/store/useStore";
 import type { Post, RecommendationReason } from "@/types";
 
@@ -82,6 +83,9 @@ function ReactRow({ post, me, onAdd }: { post: Post; me: string; onAdd: (el: HTM
 export default function PostCard({ post, reason, replies = [] }: { post: Post; reason?: RecommendationReason; replies?: Post[] }) {
   const me = useStore((s) => s.me);
   const mePk = me?.publicKey ?? "";
+  const nav = useNavigate();
+  const canVisit = !!post.author && post.author !== "rss-bot" && post.author !== "system" && !post.author.startsWith("demo_");
+  const visit = () => canVisit && nav(`/u/${post.author}`);
   const [react, setReact] = useState<{ el: HTMLElement; id: string } | null>(null);
   const [showReplies, setShowReplies] = useState(false);
   const [replyText, setReplyText] = useState("");
@@ -99,10 +103,12 @@ export default function PostCard({ post, reason, replies = [] }: { post: Post; r
   return (
     <GlassCard sx={{ mb: 1.5 }}>
       <Stack direction="row" spacing={1.5}>
-        <UserAvatar pk={post.author} name={post.authorName} avatar={post.authorAvatar} />
+        <Box onClick={visit} sx={{ cursor: canVisit ? "pointer" : "default" }}>
+          <UserAvatar pk={post.author} name={post.authorName} avatar={post.authorAvatar} />
+        </Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Stack direction="row" alignItems="center" spacing={1}>
-            <Typography sx={{ fontWeight: 700 }} noWrap>{post.authorName}</Typography>
+            <Typography onClick={visit} sx={{ fontWeight: 700, cursor: canVisit ? "pointer" : "default", "&:hover": canVisit ? { textDecoration: "underline" } : {} }} noWrap>{post.authorName}</Typography>
             {post.author === "rss-bot"
               ? <Chip size="small" label="BOT" sx={{ height: 16, fontSize: 9, bgcolor: "rgba(58,123,240,0.2)", color: "#0a55cf" }} />
               : <Tooltip title="Cryptographically signed by author"><VerifiedRoundedIcon sx={{ fontSize: 15, color: "#3f97ff" }} /></Tooltip>}

@@ -58,6 +58,7 @@ export default function App() {
             <Route path="/companion" element={<CompanionView />} />
             <Route path="/topics" element={<TopicsView />} />
             <Route path="/profile" element={<ProfileView />} />
+            <Route path="/u/:pk" element={<ProfileView />} />
             <Route path="/settings" element={<SettingsView />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

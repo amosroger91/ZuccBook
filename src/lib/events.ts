@@ -3,7 +3,7 @@
 //  driven: services emit, the UI and other services subscribe.
 //  Decouples the service layer from React entirely.
 // ============================================================
-import type { Post, ChatMessage, RichPresence, ListenRoom, WatchPartyState } from "@/types";
+import type { Post, ChatMessage, RichPresence, ListenRoom, WatchPartyState, Profile } from "@/types";
 
 export interface ZuccBookEvents {
   "identity:ready": { pk: string };
@@ -12,6 +12,8 @@ export interface ZuccBookEvents {
   "feed:react-out": { postId: string; emoji: string };
   "post:publish": Post;          // persist a post to the durable graph (Gun)
   "swarm:publish": ChatMessage;  // persist a Swarm Lounge message
+  "profile:publish": Profile;    // persist/sync my public profile
+  "profile:update": Profile;     // a peer's profile arrived
   "notify": { text: string };
   "chat:message": ChatMessage;
   "chat:typing": { channel: string; pk: string };
