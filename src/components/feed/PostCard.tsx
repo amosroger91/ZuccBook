@@ -361,17 +361,22 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
 
   // Hand the post (with its reactions + comments) to the on-device Companion.
   function askCompanion() {
-    const reactions = Object.entries(post.reactions).filter(([, v]) => v.length).map(([e, v]) => `${e}×${v.length}`).join(", ");
+    const reactionEntries = Object.entries(post.reactions).filter(([, v]) => v.length);
+    const totalReacts = reactionEntries.reduce((s, [, v]) => s + v.length, 0);
+    const reactions = reactionEntries.map(([e, v]) => `${e}×${v.length}`).join(", ");
     const comments = replies.slice(0, 6).map((r) => `- ${r.authorName}: ${(r.text ?? "").slice(0, 200)}`).join("\n");
+    const hasEngagement = totalReacts > 0 || replies.length > 0;
     const prompt = [
-      "Give me your honest, brief take on this post.",
+      "Give me your honest, brief take on this post. IMPORTANT: only describe engagement that is explicitly listed below. Do NOT invent, assume, or imply any reactions, comments, or how people received it beyond what's shown. If there are zero reactions and zero comments, treat it as having no engagement yet and do not speculate about an audience.",
       "",
-      `${post.authorName} posted: "${(post.text ?? "").slice(0, 700)}"`,
-      reactions ? `Reactions so far: ${reactions}` : "",
-      comments ? `Comments:\n${comments}` : "",
+      `Post by ${post.authorName}: "${(post.text ?? "").slice(0, 700)}"`,
+      `Reactions: ${totalReacts > 0 ? `${totalReacts} (${reactions})` : "0 — none yet"}`,
+      `Comments (${replies.length}): ${replies.length > 0 ? `\n${comments}` : "none yet"}`,
       "",
-      "What do you make of it — and what do the reactions/comments say about how it's landing?",
-    ].filter(Boolean).join("\n");
+      hasEngagement
+        ? "What do you make of it, and what does the actual engagement above suggest about how it's landing?"
+        : "It currently has no reactions and no comments, so just give your own take on the post itself — don't describe any audience reaction.",
+    ].join("\n");
     bus.emit("companion:prompt", { text: prompt });
     toast("Asked your Companion to weigh in 🤖", "info");
   }
