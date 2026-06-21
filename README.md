@@ -25,6 +25,17 @@ alive. (Yes, it's called *ZuccBook*. Yes, that's the joke.) 😄
 > *you* own your account (it's literally a file), and the "website" is just free,
 > public, static code anyone can read, fork, or re-host. Decentralization, for real.
 
+## This is radical ownership as a tech consumer
+
+ZuccBook is what it looks like to **own your software instead of renting it from a
+platform.** You own your identity (a keypair on your device), your data (in your
+browser, not a data center), the AI (it runs on your own GPU), your money (a
+self-custody wallet whose key never leaves you), and even *what you trust* — there
+is no company in the middle deciding any of it. Nobody can mine you, profile you,
+sell you, shadow‑ban you, or flip a switch to take it away, because there is no
+"them": just your device, talking directly to other people's devices, over free
+and open code. You are not the product. You are the owner.
+
 ## 🔗 Live app: https://amosroger91.github.io/ZuccBook/
 
 > Open it in **two browser windows** to watch presence, chatrooms, and the post
@@ -64,7 +75,14 @@ alive. (Yes, it's called *ZuccBook*. Yes, that's the joke.) 😄
   verse…) and a bot keeps your feed alive with the latest. Add your own feeds.
 - **Profiles** — display name + uploadable photo, stored locally and shared peer-to-peer.
 - **Reputation, not followers** — helpfulness/expertise/participation/trust, with ranks & badges.
-- **Layered local moderation** — pick a filter profile (Family-Friendly → Unfiltered); it runs locally.
+- **Layered local moderation** — an explainable on-device agent (allow → warn →
+  reduce → review → flag) with a contextual **web of trust**, not a corporate
+  ban-hammer. You decide what you see, and every verdict shows its reasoning.
+- **AI-driven fact-checking** — a **"Fact-check this"** button uses your **own
+  device's LLM** to derive keywords from a headline, searches **PolitiFact**, and
+  links a real fact-check if one exists (with an **"Is this in error?"** re-check
+  on each result). You donate a moment of your own compute to the platform's
+  integrity — no fact-check server, no third party deciding truth for you.
 - **Live online count** + rich presence (online/idle/away/dnd + activity).
 - **Offline-first** — everything lives in your browser (IndexedDB); the UI is the
   **Aurora** glass design system (a Vista/Aero homage).
