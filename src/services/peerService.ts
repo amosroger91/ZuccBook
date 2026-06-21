@@ -29,7 +29,12 @@ type Envelope =
   | { t: "react"; d: { postId: string; emoji: string; from: string; fromName: string } }
   | { t: "stage"; d: WatchPartyState }
   | { t: "wqueue"; d: { room: string; items: { videoId: string; title?: string; by: string }[] } }
+  | { t: "sync-req"; d: { have: string[] } }   // "here are the post ids I have — send me what I'm missing"
+  | { t: "sync-posts"; d: Post[] }              // a batch of history posts to backfill
   | { t: "hello"; d: { pk: string } };
+
+const SYNC_MAX = 800;   // cap how many history posts we backfill per peer (deeper history rides Gun)
+const SYNC_BATCH = 40;
 
 class PeerService {
   private peer: Peer | null = null;
@@ -84,6 +89,34 @@ class PeerService {
   private broadcast(env: Envelope, except?: string) {
     for (const [id, c] of this.clients) { if (id === except) continue; try { if (c.open) c.send(env); } catch {} }
   }
+  // Send to one specific peer (the hub replies to a given client; a client replies to the hub).
+  private sendTo(fromId: string | undefined, env: Envelope) {
+    const c = this.isHub && fromId ? this.clients.get(fromId) : this.hubConn;
+    try { if (c?.open) c.send(env); } catch {}
+  }
+
+  /* ---------- timeline history sync ---------- */
+  // On connect, tell the peer everything we already have so they can backfill
+  // the gaps both ways — no missed posts, no deletes, no duplicates.
+  private async sendSyncReq(conn: DataConnection) {
+    try {
+      const have = (await storage.allPosts()).map((p) => p.id);
+      if (conn.open) conn.send({ t: "sync-req", d: { have } });
+    } catch {}
+  }
+  // Reply to a sync-req with the posts the requester is missing (newest first, batched).
+  private async sendHistory(fromId: string | undefined, have: string[]) {
+    try {
+      const haveSet = new Set(have);
+      const missing = (await storage.allPosts())
+        .filter((p) => !haveSet.has(p.id))
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, SYNC_MAX);
+      for (let i = 0; i < missing.length; i += SYNC_BATCH) {
+        this.sendTo(fromId, { t: "sync-posts", d: missing.slice(i, i + SYNC_BATCH) });
+      }
+    } catch {}
+  }
 
   private async handle(env: Envelope, fromId?: string) {
     if (!env || !(env as any).t) return;
@@ -122,6 +155,15 @@ class PeerService {
         bus.emit("watch:queue", env.d);
         if (this.isHub) this.broadcast(env, fromId);
         break;
+      case "sync-req":
+        this.sendHistory(fromId, env.d.have);   // they told us what they have → send the gaps
+        break;
+      case "sync-posts": {
+        const me = identityService.pk;
+        // backfill: insert/merge only (absorbMany never deletes or duplicates)
+        await feedService.absorbMany(env.d.map((p) => (p.author !== me ? { ...p, source: "relay" as const } : p)));
+        break;
+      }
       case "hello": if (this.isHub) presenceService.announceSelf(); break;
     }
   }
@@ -151,6 +193,8 @@ class PeerService {
         bus.emit("peer:connected", { pk: c.peer });
         // Catch the newcomer up on every in-progress watch room.
         for (const s of this.stagesByRoom.values()) if (s.videoId) { try { c.send({ t: "stage", d: s }); } catch {} }
+        // Reconcile timeline history with the newcomer (both directions).
+        this.sendSyncReq(c);
       });
       c.on("data", (d) => this.handle(d as Envelope, c.peer));
       c.on("close", () => { this.clients.delete(c.peer); bus.emit("peer:disconnected", { pk: c.peer }); });
@@ -162,7 +206,7 @@ class PeerService {
     this.isHub = false;
     const c = this.peer!.connect(HUB_ID, { reliable: true });
     this.hubConn = c;
-    c.on("open", () => { c.send({ t: "hello", d: { pk: identityService.pk } }); presenceService.announceSelf(); });
+    c.on("open", () => { c.send({ t: "hello", d: { pk: identityService.pk } }); presenceService.announceSelf(); this.sendSyncReq(c); });
     c.on("data", (d) => this.handle(d as Envelope));
     c.on("close", () => { if (!this.leaving) this.reelect(); });
     c.on("error", () => { if (!this.leaving) this.reelect(); });

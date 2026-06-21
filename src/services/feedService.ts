@@ -114,6 +114,31 @@ class FeedService {
     if (changed) { await storage.putPost(existing); bus.emit("feed:updated", undefined); }
   }
 
+  /** Bulk-absorb a batch of posts from a peer's history sync: insert anything
+   *  new, merge reactions/media into what we already have — never delete, never
+   *  duplicate — and fire a single feed update (no per-post events/alerts). */
+  async absorbMany(posts: Post[]) {
+    let changed = 0;
+    for (const post of posts) {
+      if (!post?.id) continue;
+      const existing = await storage.getPost(post.id);
+      if (!existing) {
+        post.embedding ??= embed([post.text ?? "", ...(post.tags ?? [])].join(" "));
+        await storage.putPost(post); changed++;
+        continue;
+      }
+      let upd = false;
+      for (const [emoji, voters] of Object.entries(post.reactions ?? {})) {
+        const cur = existing.reactions[emoji] ?? [];
+        const union = [...new Set([...cur, ...voters])];
+        if (union.length !== cur.length) { existing.reactions[emoji] = union; upd = true; }
+      }
+      if (post.media?.length && !existing.media?.length) { existing.media = post.media; upd = true; }
+      if (upd) { await storage.putPost(existing); changed++; }
+    }
+    if (changed) bus.emit("feed:updated", undefined);
+  }
+
   /** Toggle a reaction by a specific person (used for both local and remote).
    *  Idempotent per (person, emoji), so every peer converges to the same state. */
   async applyReaction(postId: string, emoji: string, fromPk: string) {
