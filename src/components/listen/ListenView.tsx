@@ -8,11 +8,15 @@ import GlassCard from "@/components/common/GlassCard";
 import { listenTogetherService, type Station } from "@/services/listenTogetherService";
 import { presenceService } from "@/services/presenceService";
 import { reputationService } from "@/services/reputationService";
+import { peerService } from "@/services/peerService";
+import { watchRoomService } from "@/services/watchRoomService";
 import { toast } from "@/lib/events";
 import WatchParty from "./WatchParty";
 
 export default function ListenView() {
-  const [mode, setMode] = useState<"music" | "video">("music");
+  // Arrive in "video" if a watch room is already playing (e.g. via the feed's
+  // "Watch with friends" button); otherwise default to music.
+  const [mode, setMode] = useState<"music" | "video">(() => peerService.currentStage(watchRoomService.current)?.videoId ? "video" : "music");
 
   // --- music (internet radio) ---
   const [stations, setStations] = useState<Station[]>([]);
@@ -38,17 +42,17 @@ export default function ListenView() {
 
   return (
     <Box sx={{ maxWidth: 1000, mx: "auto" }}>
-      <Typography variant="h5">Watch &amp; Listen Together</Typography>
+      <Typography variant="h5">🍿 Watch with friends</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Synchronized rooms — Spotify Jam × Discord Voice × Watch Party. Stream internet radio or drop a YouTube video; in a room everyone shares the same moment (sync over the peer relay).
+        Synchronized rooms — like chatrooms, but for watching together. Join the public Lobby, a named room, or a private one, and everyone shares the same moment (synced over the peer relay). Or stream internet radio.
       </Typography>
 
       <ToggleButtonGroup
         exclusive size="small" value={mode} onChange={(_, v) => v && setMode(v)}
         sx={{ mb: 2, "& .MuiToggleButton-root": { border: "1px solid rgba(58,155,240,0.18)", color: "text.secondary", "&.Mui-selected": { background: "linear-gradient(135deg,#3f97ff,#1668e0)", color: "#ffffff" } } }}
       >
-        <ToggleButton value="music"><MusicNoteRoundedIcon fontSize="small" sx={{ mr: 0.5 }} /> Music</ToggleButton>
-        <ToggleButton value="video"><SmartDisplayRoundedIcon fontSize="small" sx={{ mr: 0.5 }} /> Video</ToggleButton>
+        <ToggleButton value="music"><MusicNoteRoundedIcon fontSize="small" sx={{ mr: 0.5 }} /> Radio</ToggleButton>
+        <ToggleButton value="video"><SmartDisplayRoundedIcon fontSize="small" sx={{ mr: 0.5 }} /> Watch rooms</ToggleButton>
       </ToggleButtonGroup>
 
       {mode === "music" && (

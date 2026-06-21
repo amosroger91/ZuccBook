@@ -210,6 +210,7 @@ export interface WatchPartyState {
   by: string;         // who set it (pk)
   byName?: string;    // their display name (so receivers don't need a profile sync)
   title?: string;
+  room?: string;      // watch-with-friends room id (default "lobby"); "priv:*" = private
 }
 
 export type ModerationProfile =

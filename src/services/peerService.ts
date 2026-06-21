@@ -38,9 +38,14 @@ class PeerService {
   private leaving = false;
   private reelectTimer: any = null;
   private started = false;
-  private lastStage: WatchPartyState | null = null; // current watch-party, replayed to new joiners
+  private lastStage: WatchPartyState | null = null; // most recent (any room) — replayed to new joiners
+  private stagesByRoom = new Map<string, WatchPartyState>(); // latest state per watch room
 
-  currentStage() { return this.lastStage; }
+  currentStage(room = "lobby") { return this.stagesByRoom.get(room) ?? null; }
+  /** Public rooms with a live video (for the lobby's "active rooms" list). */
+  activeRooms(): WatchPartyState[] {
+    return [...this.stagesByRoom.values()].filter((s) => s.videoId && !(s.room ?? "lobby").startsWith("priv:"));
+  }
 
   start() {
     if (this.started) return;
@@ -50,7 +55,7 @@ class PeerService {
     bus.on("feed:react-out", ({ postId, emoji }) =>
       this.send({ t: "react", d: { postId, emoji, from: identityService.pk, fromName: identityService.current?.username ?? "Someone" } }));
     // Relay local watch-party changes; remember the latest so late joiners catch up.
-    bus.on("stage:out", (s) => { this.lastStage = s; this.send({ t: "stage", d: s }); });
+    bus.on("stage:out", (s) => { this.lastStage = s; this.stagesByRoom.set(s.room ?? "lobby", s); this.send({ t: "stage", d: s }); });
     this.connect();
   }
 
@@ -104,6 +109,7 @@ class PeerService {
         break;
       case "stage":
         this.lastStage = env.d;
+        this.stagesByRoom.set(env.d.room ?? "lobby", env.d);
         bus.emit("stage:in", env.d);
         if (this.isHub) this.broadcast(env, fromId);
         break;
@@ -134,8 +140,8 @@ class PeerService {
       c.on("open", () => {
         this.clients.set(c.peer, c);
         bus.emit("peer:connected", { pk: c.peer });
-        // Catch the newcomer up on the in-progress watch party.
-        if (this.lastStage && this.lastStage.videoId) { try { c.send({ t: "stage", d: this.lastStage }); } catch {} }
+        // Catch the newcomer up on every in-progress watch room.
+        for (const s of this.stagesByRoom.values()) if (s.videoId) { try { c.send({ t: "stage", d: s }); } catch {} }
       });
       c.on("data", (d) => this.handle(d as Envelope, c.peer));
       c.on("close", () => { this.clients.delete(c.peer); bus.emit("peer:disconnected", { pk: c.peer }); });

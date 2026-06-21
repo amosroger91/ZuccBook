@@ -32,7 +32,8 @@ export interface ZuccBookEvents {
   "listen:now": { station: { name: string; genre: string; url: string } | null; playing: boolean };
   "stage:in": WatchPartyState;   // a watch-party update arrived from a peer
   "stage:out": WatchPartyState;  // local watch-party change to broadcast
-  "watch:start": { videoId: string };  // start/replace the watch-party video
+  "watch:start": { videoId: string };  // start/replace the watch-party video (current room)
+  "watchroom:change": string;           // you switched watch-with-friends rooms
   "feedvideo:play": { videoId: string; dockId: string };  // play a feed video in the global player
   "spotify:play": { embedUrl: string; dockId: string };   // play a Spotify embed in the global player
   "audio:now": { title: string | null; playing: boolean; url: string | null };  // shared mp3 player state

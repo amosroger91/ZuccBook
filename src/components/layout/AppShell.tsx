@@ -11,7 +11,6 @@ import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import ChatRoundedIcon from "@mui/icons-material/ChatRounded";
 import ForumRoundedIcon from "@mui/icons-material/ForumRounded";
-import HeadphonesRoundedIcon from "@mui/icons-material/HeadphonesRounded";
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import RssFeedRoundedIcon from "@mui/icons-material/RssFeedRounded";
 import StorefrontRoundedIcon from "@mui/icons-material/StorefrontRounded";
@@ -28,7 +27,7 @@ const NAV = [
   { to: "/communities", label: "Groups", icon: <GroupsRoundedIcon /> },
   { to: "/messages", label: "Town Square", icon: <ChatRoundedIcon /> },
   { to: "/chatroom", label: "Chatroom", icon: <ForumRoundedIcon /> },
-  { to: "/listen", label: "Watch & Listen", icon: <HeadphonesRoundedIcon /> },
+  { to: "/listen", label: "Watch with friends", icon: <Box sx={{ fontSize: 20, lineHeight: 1 }}>🍿</Box> },
   { to: "/companion", label: "Companion", icon: <AutoAwesomeRoundedIcon /> },
   { to: "/topics", label: "Topics", icon: <RssFeedRoundedIcon /> },
   { to: "/market", label: "Market", icon: <StorefrontRoundedIcon /> },

@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { peerService } from "@/services/peerService";
 import { presenceService } from "@/services/presenceService";
 import { profileService } from "@/services/profileService";
+import { watchRoomService } from "@/services/watchRoomService";
 import { bus } from "@/lib/events";
 import { useStore } from "@/store/useStore";
 import { fingerprint } from "@/lib/crypto";
@@ -51,7 +52,7 @@ export default function GlobalWatchPlayer() {
 
   function broadcast(playing: boolean, baseTime: number, videoId = vid.current) {
     if (!videoId) return;
-    const s: WatchPartyState = { videoId, playing, baseTime, refEpoch: Date.now(), by: me?.publicKey ?? "", byName: me?.username };
+    const s: WatchPartyState = { videoId, playing, baseTime, refEpoch: Date.now(), by: me?.publicKey ?? "", byName: me?.username, room: watchRoomService.current };
     lastStage.current = s; setStage(s); bus.emit("stage:out", s);
   }
   function onStateChange(e: any) {
@@ -80,6 +81,7 @@ export default function GlobalWatchPlayer() {
     }
   }
   function applyRemote(s: WatchPartyState, silent = false) {
+    if ((s.room ?? "lobby") !== watchRoomService.current) return; // another room's party — ignore
     const prev = lastStage.current; lastStage.current = s; setStage(s);
     if (!silent && s.by && s.by !== me?.publicKey) {
       const who = nameFor(s);
@@ -101,9 +103,16 @@ export default function GlobalWatchPlayer() {
     const offMedia = bus.on("media:play", ({ id }) => {
       if (id !== "watch" && player.current) { try { applying.current = true; player.current.pauseVideo(); setTimeout(() => { applying.current = false; }, 800); } catch {} }
     });
-    const cur = peerService.currentStage(); lastStage.current = cur;
+    // Switching rooms → load that room's video (or clear the player if empty).
+    const offRoom = bus.on("watchroom:change", (room) => {
+      const s = peerService.currentStage(room);
+      closedId.current = null;
+      if (s?.videoId) applyRemote(s, true);
+      else { lastStage.current = null; setStage(null); try { player.current?.stopVideo?.(); } catch {} }
+    });
+    const cur = peerService.currentStage(watchRoomService.current); lastStage.current = cur;
     if (cur?.videoId) applyRemote(cur, true);
-    return () => { off(); offStart(); offMedia(); };
+    return () => { off(); offStart(); offMedia(); offRoom(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

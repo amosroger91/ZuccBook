@@ -9,11 +9,11 @@ import MoreVertRoundedIcon from "@mui/icons-material/MoreVertRounded";
 import GavelRoundedIcon from "@mui/icons-material/GavelRounded";
 import ImageRoundedIcon from "@mui/icons-material/ImageRounded";
 import GifBoxRoundedIcon from "@mui/icons-material/GifBoxRounded";
-import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import { Menu, MenuItem, LinearProgress } from "@mui/material";
 import { linkPreviewService, type Preview } from "@/services/linkPreviewService";
 import { trustService } from "@/services/trustService";
 import { audioPlayerService } from "@/services/audioPlayerService";
+import { watchRoomService } from "@/services/watchRoomService";
 import { factCheckService, type FactCheck } from "@/services/factCheckService";
 import FactCheckRoundedIcon from "@mui/icons-material/FactCheckRounded";
 import { emojify } from "@/lib/emoticons";
@@ -140,11 +140,12 @@ function YouTubeCard({ id }: { id: string }) {
   }, []);
   const start = () => { setActive(true); bus.emit("feedvideo:play", { videoId: id, dockId: dockId.current }); };
   const watchTogether = () => {
-    bus.emit("watch:start", { videoId: id });
-    bus.emit("media:play", { id: "watch" });       // pause the feed player
+    watchRoomService.set(watchRoomService.forVideo(id));  // open a room for this video
+    bus.emit("watch:start", { videoId: id });             // start it in that room
+    bus.emit("media:play", { id: "watch" });              // pause the feed player
     setActive(false);
-    window.location.hash = "#/listen";             // open the Watch & Listen room
-    toast("Started a watch party — friends in the room are watching with you", "success");
+    window.location.hash = "#/listen";                    // open Watch with friends
+    toast("Opened a watch room — share it so friends can join 🍿", "success");
   };
   return (
     <Box sx={{ mt: 1 }}>
@@ -163,7 +164,7 @@ function YouTubeCard({ id }: { id: string }) {
           </Box>
         )}
       </Box>
-      <Button size="small" startIcon={<GroupsRoundedIcon fontSize="small" />} onClick={watchTogether} sx={{ mt: 0.5, color: "text.secondary" }}>
+      <Button size="small" startIcon={<span style={{ fontSize: 15 }}>🍿</span>} onClick={watchTogether} sx={{ mt: 0.5, color: "text.secondary" }}>
         Watch with friends
       </Button>
     </Box>
