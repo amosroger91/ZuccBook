@@ -454,9 +454,15 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
             </Box>
           )}
 
-          {/* reaction summary (who reacted) — Facebook-style, above the action bar */}
+          </>)}
+        </Box>
+      </Stack>
+
+      {/* full-width footer — reaction summary, action bar & comments span the whole card */}
+      {(!restricted || revealed) && (
+        <Box sx={{ mt: 1 }}>
           {Object.values(post.reactions).some((v) => v.length) && (
-            <Box sx={{ mt: 1.25, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+            <Box sx={{ mb: 1, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
               {Object.entries(post.reactions).filter(([, v]) => v.length).map(([emoji, voters]) => (
                 <Chip key={emoji} size="small" label={`${emoji} ${voters.length}`} onClick={() => feedService.react(post.id, emoji)}
                   sx={{ height: 26, fontSize: 13, cursor: "pointer", border: voters.includes(mePk) ? "1px solid rgba(58,155,240,0.5)" : "1px solid transparent",
@@ -466,7 +472,7 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
           )}
 
           {/* action bar — clean, evenly split, hover-highlighted (Twitter × Facebook) */}
-          <Stack direction="row" spacing={0.5} sx={{ mt: 1, pt: 0.75, borderTop: "1px solid var(--bl-line)" }}>
+          <Stack direction="row" spacing={0.5} sx={{ pt: 0.75, borderTop: "1px solid var(--bl-line)" }}>
             <Button fullWidth disableRipple onClick={(e) => setReact({ el: e.currentTarget, id: post.id })}
               startIcon={<AddReactionOutlinedIcon sx={{ fontSize: 19 }} />}
               sx={{ flex: 1, color: "text.secondary", fontWeight: 600, fontSize: 13.5, textTransform: "none", py: 0.7, borderRadius: 2, "&:hover": { bgcolor: "rgba(58,155,240,0.09)", color: "#1668e0" } }}>
@@ -492,9 +498,8 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
               <ReplyComposer parentId={post.id} placeholder={`Reply to ${post.authorName}…`} />
             </Box>
           )}
-          </>)}
         </Box>
-      </Stack>
+      )}
 
       <Menu open={!!authMenu} anchorEl={authMenu} onClose={() => setAuthMenu(null)}>
         {showFactChecks && !factCheck && <MenuItem disabled={fcBusy} onClick={() => { setAuthMenu(null); runFactCheck(); }}>🔎 {fcBusy ? "Checking…" : "Fact-check this"}</MenuItem>}
