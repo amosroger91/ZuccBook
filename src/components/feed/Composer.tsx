@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Stack, TextField, Button, IconButton, Box, Chip, Tooltip } from "@mui/material";
+import { Stack, TextField, Button, IconButton, Box, Chip, Tooltip, Typography } from "@mui/material";
 import ImageRoundedIcon from "@mui/icons-material/ImageRounded";
 import GifBoxRoundedIcon from "@mui/icons-material/GifBoxRounded";
 import AudiotrackRoundedIcon from "@mui/icons-material/AudiotrackRounded";
@@ -48,7 +48,7 @@ export default function Composer({ community }: { community?: string }) {
   async function postHtml(html: string) {
     const p = await feedService.createPost({ html, community });
     peerService.publishPost(p);
-    toast(community ? "HTML posted to the group ✦" : "HTML posted ✦", "success");
+    toast(community ? "HTML posted to the group — it's permanent now ✦" : "HTML posted — it's out there forever ✦", "success");
   }
 
   async function post() {
@@ -59,7 +59,7 @@ export default function Composer({ community }: { community?: string }) {
     const p = await feedService.createPost({ text: body, media: media.length ? media : undefined, community });
     peerService.publishPost(p);
     setText(""); setMedia([]);
-    toast(community ? "Posted to the group ✦" : "Posted & signed ✦", "success");
+    toast(community ? "Posted to the group — it's permanent now ✦" : "Posted & signed — it's out there forever ✦", "success");
   }
 
   return (
@@ -93,6 +93,9 @@ export default function Composer({ community }: { community?: string }) {
             <Chip size="small" variant="outlined" label="local-only until posted" sx={{ opacity: 0.6, display: { xs: "none", sm: "inline-flex" } }} />
             <Button variant="contained" onClick={post} disabled={!text.trim() && !media.length}>Post</Button>
           </Stack>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.75 }}>
+            <span>🔗</span> Posting is <b>permanent</b> — once it's out, it spreads across the network and can't be unsent or deleted. Post like it's forever, because it is.
+          </Typography>
         </Box>
       </Stack>
       <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => attach(e.target.files?.[0])} />

@@ -20,7 +20,7 @@ import type { ModerationProfile } from "@/types";
 
 // Positive reactions double as a soft "vouch" for the author (web of trust),
 // so genuine positive interactions raise contextual trust. 👀 is neutral.
-const POSITIVE_REACTIONS = new Set(["⭐", "🔥", "🚀", "💜", "😂", "❤️", "👍", "🙂", "😄", "🙌", "💯"]);
+const POSITIVE_REACTIONS = new Set(["⭐", "🔥", "🚀", "💜", "😂", "❤️", "👍", "🙂", "😄", "🙌", "💯", "😮", "💀", "🏳️‍🌈"]);
 
 class FeedService {
   private profile = new InterestProfile();

@@ -114,6 +114,23 @@ yours, assembled from the whole open web, on your terms — not a corporation's.
 
 ---
 
+## Posting is permanent — by design
+
+There's a flip side to having no central server: **there's no central server to delete from.**
+When you post on ZuccBook, it doesn't sit in one company's database where a "delete"
+button can wipe it. It's **signed by your key and replicated** — across the durable
+[Gun.js](https://gun.eco/) graph, across the peers who received it, and into the
+local storage of everyone who's already seen it. The same architecture that means
+**nobody can censor or memory-hole your posts** also means **you can't un-ring the
+bell.** Once something is out, it's out.
+
+This is the honest trade of real decentralization, and the app says so right in the
+composer: *posting is permanent — once it's out, it spreads across the network and
+can't be unsent or deleted. Post like it's forever, because it is.* Treat it like
+speaking in public, not like a draft you can quietly take back.
+
+---
+
 ## How it works (genuinely no backend)
 
 GitHub Pages only serves static files, so ZuccBook is pure browser tech:
