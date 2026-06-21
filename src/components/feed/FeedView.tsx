@@ -32,7 +32,8 @@ export default function FeedView() {
   const algo = settings.feedAlgorithm;
 
   const refresh = useCallback(async () => {
-    const { posts, reasons } = await feedService.generate(algo, { moderation: settings.moderationProfile });
+    const subscribedTopics = (await rssService.config()).topics;
+    const { posts, reasons } = await feedService.generate(algo, { moderation: settings.moderationProfile, subscribedTopics });
     setPosts(posts);
     setReasons(reasons);
     setSummary(companionService.summarizeFeed(posts));

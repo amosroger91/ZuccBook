@@ -171,6 +171,7 @@ export interface WatchPartyState {
   baseTime: number;   // video seconds at the reference moment
   refEpoch: number;   // epoch ms when the video was at baseTime
   by: string;         // who set it (pk)
+  byName?: string;    // their display name (so receivers don't need a profile sync)
   title?: string;
 }
 

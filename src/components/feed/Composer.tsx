@@ -59,7 +59,7 @@ export default function Composer() {
             <Tooltip title="Attach image"><IconButton size="small" onClick={() => fileRef.current?.click()}><ImageRoundedIcon fontSize="small" /></IconButton></Tooltip>
             <Tooltip title="Companion: draft a fresh post"><IconButton size="small" onClick={async () => { const { posts } = await feedService.generate("trending", { moderation }); setText(companionService.draftPost(posts)); }}><AutoFixHighRoundedIcon fontSize="small" /></IconButton></Tooltip>
             <Box sx={{ flex: 1 }} />
-            <Chip size="small" variant="outlined" label="local-only until posted" sx={{ opacity: 0.6 }} />
+            <Chip size="small" variant="outlined" label="local-only until posted" sx={{ opacity: 0.6, display: { xs: "none", sm: "inline-flex" } }} />
             <Button variant="contained" onClick={post} disabled={!text.trim() && !media.length}>Post</Button>
           </Stack>
         </Box>

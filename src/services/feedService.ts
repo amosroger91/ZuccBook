@@ -125,11 +125,18 @@ class FeedService {
   /* ---------- feed generation ---------- */
   async generate(
     algorithm: FeedAlgorithm,
-    opts: { moderation: ModerationProfile; friends?: string[]; community?: string } = { moderation: "discovery" },
+    opts: { moderation: ModerationProfile; friends?: string[]; community?: string; subscribedTopics?: string[] } = { moderation: "discovery" },
   ): Promise<{ posts: Post[]; reasons: Map<string, RecommendationReason> }> {
     let posts = (await storage.allPosts()).filter((p) => !p.replyTo); // top-level only
     // Layer 1/3 moderation
     posts = posts.filter((p) => moderationService.filterPost(p, opts.moderation).allowed);
+
+    // "For You" = real human activity + RSS Bot posts only from topics you
+    // subscribed to. No LLM / interest-embedding curation involved.
+    if (algorithm === "ai-curated") {
+      const subTags = new Set((opts.subscribedTopics ?? []).map((t) => t.toLowerCase().replace(/[^a-z0-9]+/g, "")));
+      posts = posts.filter((p) => p.author !== "rss-bot" || (p.tags[0] && subTags.has(p.tags[0])));
+    }
 
     const reasons = new Map<string, RecommendationReason>();
     const now = Date.now();
@@ -174,9 +181,11 @@ class FeedService {
           break;
         case "ai-curated":
         default:
-          score = affinity * 6 + recency * 2 + engagement * 0.5;
-          factors.push({ label: "Matches your interests", weight: affinity * 6, detail: `${(affinity * 100).toFixed(0)}% match · terms: ${topTerms(p.text ?? "").join(", ") || "—"}` });
-          factors.push({ label: "Community engagement", weight: engagement * 0.5, detail: `${engagement} reactions` });
+          // For You: people + your subscribed topics, newest first (no LLM/embeddings).
+          score = recency * 6 + engagement * 0.5;
+          factors.push({ label: p.author === "rss-bot" ? "From a topic you follow" : "Human activity", weight: 6 });
+          factors.push({ label: "Recency", weight: recency * 6 });
+          factors.push({ label: "Engagement", weight: engagement * 0.5, detail: `${engagement} reactions` });
           break;
       }
 

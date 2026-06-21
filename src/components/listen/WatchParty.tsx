@@ -45,12 +45,13 @@ export default function WatchParty() {
   const [input, setInput] = useState("");
   const [stage, setStage] = useState<WatchPartyState | null>(null);
 
-  const nameFor = (pk: string) => profileService.get(pk)?.username || fingerprint(pk);
+  const nameFor = (s: WatchPartyState) => s.byName || profileService.get(s.by)?.username || fingerprint(s.by);
   const flash = (text: string) => bus.emit("notify", { text });
 
   function broadcast(playing: boolean, baseTime: number, videoId = vid.current, title?: string) {
     if (!videoId) return;
-    const s: WatchPartyState = { videoId, playing, baseTime, refEpoch: Date.now(), by: me?.publicKey ?? "", title };
+    const s: WatchPartyState = { videoId, playing, baseTime, refEpoch: Date.now(), by: me?.publicKey ?? "", byName: me?.username, title };
+    lastStage.current = s;
     setStage(s);
     bus.emit("stage:out", s);
   }
@@ -90,7 +91,7 @@ export default function WatchParty() {
     setStage(s);
     // Announce who did what (skip our own actions + the silent catch-up on open).
     if (!silent && s.by && s.by !== me?.publicKey) {
-      const who = nameFor(s.by);
+      const who = nameFor(s);
       if (!prev?.videoId && s.videoId) flash(`${who} started a watch party`);
       else if (prev && prev.videoId !== s.videoId) flash(`${who} changed the video`);
       else if (prev && prev.playing && !s.playing) flash(`${who} paused the video`);
@@ -135,7 +136,7 @@ export default function WatchParty() {
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
             <Chip size="small" label={stage?.playing ? "▶ playing" : "❚❚ paused"} sx={{ bgcolor: "rgba(84,201,90,0.16)", color: "#54c95a" }} />
             <Typography variant="caption" color="text.secondary">
-              synced party · started by {stage?.by === me?.publicKey ? "you" : fingerprint(stage?.by ?? "")} · everyone watches the same spot
+              synced party · started by {stage?.by === me?.publicKey ? "you" : (stage?.byName || profileService.get(stage?.by ?? "")?.username || fingerprint(stage?.by ?? ""))} · everyone watches the same spot
             </Typography>
           </Stack>
         )}

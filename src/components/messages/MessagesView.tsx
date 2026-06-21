@@ -57,7 +57,11 @@ export default function MessagesView() {
       </GlassCard>
 
       <Box sx={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+        {/* on phones the sidebar is hidden — pick a conversation here */}
+        <TextField select size="small" value={channel} onChange={(e) => setChannel(e.target.value)} sx={{ mb: 1, display: { xs: "block", sm: "none" } }} SelectProps={{ native: true }}>
+          {channels.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+        </TextField>
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1, flexWrap: "wrap" }}>
           <Typography variant="h6">{channels.find((c) => c.id === channel)?.label ?? "Chat"}</Typography>
           <Chip size="small" label={channel === "swarm" ? "public relay" : "direct (E2E in Phase 2)"} variant="outlined" sx={{ opacity: 0.7 }} />
         </Stack>
