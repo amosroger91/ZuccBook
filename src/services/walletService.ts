@@ -6,7 +6,7 @@
 //  (gas/money) and USDC (a stablecoin = real "money"). It's a hot
 //  burner wallet — keep only small amounts and export your key.
 // ============================================================
-import { JsonRpcProvider, Wallet, Contract, formatEther, parseEther, formatUnits, parseUnits, isAddress } from "ethers";
+import { JsonRpcProvider, Network, Wallet, Contract, formatEther, parseEther, formatUnits, parseUnits, isAddress } from "ethers";
 import { storage } from "./storage";
 
 // Keyless, CORS-enabled public Polygon RPCs (verified to work from a browser),
@@ -35,17 +35,27 @@ async function loadPk(): Promise<string> {
   return pk;
 }
 
+// A fixed Network so providers never run ethers' background "detect network"
+// retry loop (which otherwise hammers a dead RPC every 1s — forever).
+const NET = Network.from(CHAIN.id);
+
 // Find a reachable RPC (probes each; first that answers wins). `force` re-probes.
+// Crucially, every provider that fails the probe is destroyed so its internal
+// polling/retry loops stop — otherwise failed providers leak and pile up
+// background timers that eventually janks the whole app.
 async function getProvider(force = false): Promise<JsonRpcProvider> {
   if (provider && !force) return provider;
   let lastErr: unknown;
   for (const url of RPCS) {
+    const p = new JsonRpcProvider(url, NET, { staticNetwork: NET });
     try {
-      const p = new JsonRpcProvider(url, CHAIN.id, { staticNetwork: true });
-      await p.getBlockNumber();          // probe (also confirms CORS works)
+      await Promise.race([
+        p.getBlockNumber(),                                  // probe (also confirms CORS)
+        new Promise((_, rej) => setTimeout(() => rej(new Error("rpc timeout")), 6000)),
+      ]);
       provider = p;
       return p;
-    } catch (e) { lastErr = e; }
+    } catch (e) { lastErr = e; try { p.destroy(); } catch {} }  // stop its retry loop
   }
   throw lastErr ?? new Error("No reachable Polygon RPC");
 }

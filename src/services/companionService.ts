@@ -47,13 +47,15 @@ export async function bestModelForHardware(): Promise<{ id: string; reason: stri
     const adapter = await (navigator as any).gpu.requestAdapter();
     if (adapter) maxBuffer = adapter.limits?.maxBufferSize || adapter.limits?.maxStorageBufferBindingSize || 0;
   } catch { /* adapter probe failed — fall back to RAM heuristic */ }
-  const bigGpu = maxBuffer >= 1_000_000_000;                       // ≥1 GB single-buffer limit
+  // Be GPU-buffer aware and conservative: picking a model bigger than the GPU's
+  // single-buffer limit causes a "device lost" crash. Default to the tiny model
+  // unless the GPU clearly has room; users can always pick a bigger one manually.
+  const huge = maxBuffer >= 3_000_000_000;   // ~3 GB+ single-buffer
+  const big = maxBuffer >= 1_500_000_000;    // ~1.5 GB+ single-buffer
   let pick: LlmModel, why: string;
-  if (gb >= 8 && bigGpu) { pick = byId("Phi-3.5-mini-instruct-q4f16_1-MLC"); why = `${gb}GB RAM + capable GPU`; }
-  else if (gb >= 8)      { pick = byId("Llama-3.2-3B-Instruct-q4f16_1-MLC");  why = `${gb}GB RAM`; }
-  else if (gb >= 6)      { pick = byId("gemma-2-2b-it-q4f16_1-MLC");          why = `${gb}GB RAM`; }
-  else if (gb >= 4)      { pick = byId("Llama-3.2-1B-Instruct-q4f16_1-MLC");  why = `${gb}GB RAM`; }
-  else                   { pick = MODELS[0];                                  why = `${gb}GB RAM — keeping it light`; }
+  if (huge && gb >= 8) { pick = byId("Llama-3.2-3B-Instruct-q4f16_1-MLC"); why = `${gb}GB RAM + roomy GPU`; }
+  else if (big && gb >= 8) { pick = byId("Llama-3.2-1B-Instruct-q4f16_1-MLC"); why = `${gb}GB RAM`; }
+  else { pick = MODELS[0]; why = maxBuffer ? "modest GPU — keeping it light" : "GPU limits unknown — playing it safe"; }
   return { id: pick.id, reason: `Auto-selected ${pick.label} (${pick.size}) for your hardware: ${why}.` };
 }
 function byId(id: string): LlmModel { return MODELS.find((m) => m.id === id) ?? MODELS[0]; }
@@ -63,13 +65,14 @@ let engine: any = null;
 let loadedId: string | null = null;
 let loadingId: string | null = null;
 let loadingPromise: Promise<any> | null = null;
+const failed = new Set<string>(); // models that crashed (e.g. GPU device lost) — don't retry
 
 export function modelReady(id: string): boolean { return !!engine && loadedId === id; }
 
 async function loadModel(id: string): Promise<any | null> {
   if (engine && loadedId === id) return engine;
   if (loadingPromise && loadingId === id) return loadingPromise;
-  if (!isWebGPU()) return null;
+  if (!isWebGPU() || failed.has(id)) return null;   // don't re-attempt a model that crashed
   loadingId = id;
   loadingPromise = (async () => {
     try {
@@ -84,6 +87,8 @@ async function loadModel(id: string): Promise<any | null> {
       return eng;
     } catch (e) {
       console.warn("[companion] model load failed", e);
+      failed.add(id);                  // don't keep retrying a model that crashes this GPU
+      engine = null; loadedId = null;
       bus.emit("companion:model", { state: "error", id });
       return null;
     } finally { loadingPromise = null; loadingId = null; }
