@@ -35,6 +35,9 @@ export async function boot(): Promise<BootResult> {
     await communityService.seedDefaults();
     peerService.start();
     rssService.refresh().catch(() => {}); // fire-and-forget; throttled internally
+    // Keep topping up while the app is open so new stories arrive during a
+    // session; the service throttles actual fetches.
+    setInterval(() => rssService.refresh().catch(() => {}), 6 * 60 * 1000);
   }
   return { onboarded: !!me, settings };
 }

@@ -13,7 +13,6 @@
 import type { Post } from "@/types";
 import { storage } from "./storage";
 import { feedService } from "./feedService";
-import { companionService } from "./companionService";
 import { embed } from "@/lib/embeddings";
 
 export interface Feed { url: string; name: string; }
@@ -99,7 +98,9 @@ const PROXIES = [
   (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
   (u: string) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
 ];
-const THROTTLE_MS = 15 * 60 * 1000;
+const THROTTLE_MS = 10 * 60 * 1000;
+const PER_FEED = 6;          // how many recent stories to pull per feed (backfill)
+const GENERIC = ["Check this out 👀", "This may be interesting", "Worth a look", "Saw this come through", "Thought I'd share this", "ICYMI"];
 const DEFAULT: RssConfig = { topics: [], custom: [], disabled: [], seen: [], lastRun: 0 };
 
 function hash(s: string): string {
@@ -182,19 +183,10 @@ class RssService {
     return items;
   }
 
-  private heuristicBlurb(item: RssItem, topic: string): string {
-    const lead = [
-      `Fresh in ${topic}:`, `Worth a look (${topic}):`, `${topic} update:`, `Spotted in ${topic}:`,
-    ][Math.floor(Math.random() * 4)];
-    return `${lead} ${item.title}`;
-  }
-  private async blurb(item: RssItem, topic: string): Promise<string> {
-    const prompt = `Write a one-sentence, engaging social-post intro (no hashtags) for this ${topic} headline: "${item.title}". ${item.summary ? "Context: " + item.summary : ""}`;
-    const llm = await companionService.quickLLM(prompt);
-    return (llm && llm.trim()) || this.heuristicBlurb(item, topic);
-  }
-
-  /** Pull items for all subscribed topics and post them as RSS Bot. */
+  /** Pull recent items for all subscribed topics and post them as RSS Bot.
+   *  Each story keeps its real publish time, so when you return you see the
+   *  ones published while you were away, slotted into the timeline at the time
+   *  they actually went out — emulating a feed that posts continuously. */
   async refresh(force = false): Promise<number> {
     const c = await this.config();
     if (!c.topics.length) return 0;
@@ -208,19 +200,21 @@ class RssService {
       const feeds = (await this.feedsForTopic(topic)).slice(0, 2); // two most relevant
       for (const feed of feeds) {
         const items = await this.fetchFeed(feed.url);
-        for (const item of items.slice(0, 1)) { // top story per feed
+        for (const item of items.slice(0, PER_FEED)) {
           if (seen.has(item.link)) continue;
           seen.add(item.link);
-          const text = await this.blurb(item, topic);
+          const line = GENERIC[Math.floor(Math.random() * GENERIC.length)];
           const post: Post = {
             id: "rss_" + hash(item.link),
             author: "rss-bot",
             authorName: `RSS Bot · ${feed.name}`,
             kind: "text",
-            text: `${text}\n\n📰 ${item.title}\n${item.summary}\n${item.link}`,
+            // generic intro, then title / description / link; the post time IS
+            // the story's publish time (shown by the card).
+            text: `${line}\n\n${item.title}\n\n${item.summary}\n\n${item.link}`,
             media: item.image ? [{ type: "image", url: item.image, mime: "image/*", alt: item.title }] : undefined,
             tags: [topic.toLowerCase().replace(/\s+/g, "")],
-            createdAt: Date.now(),
+            createdAt: item.published || Date.now(),  // real publish time → "missed" stories land in order
             reactions: {},
             embedding: embed(item.title + " " + item.summary + " " + topic),
             source: "relay",
@@ -230,7 +224,7 @@ class RssService {
         }
       }
     }
-    c.seen = [...seen].slice(-400);
+    c.seen = [...seen].slice(-600);
     await this.save(c);
     return posted;
   }
