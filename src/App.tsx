@@ -26,6 +26,7 @@ import AudioMiniPlayer from "@/components/layout/AudioMiniPlayer";
 import GlobalWatchPlayer from "@/components/layout/GlobalWatchPlayer";
 import GlobalFeedVideo from "@/components/layout/GlobalFeedVideo";
 import GlobalSpotify from "@/components/layout/GlobalSpotify";
+import CompanionIntro from "@/components/layout/CompanionIntro";
 
 export default function App() {
   const { ready, onboarded, setReady, setPresence, setOnlineCount } = useStore();
@@ -77,6 +78,7 @@ export default function App() {
       {ready && onboarded && <GlobalSpotify />}
       {ready && onboarded && <MiniPlayer />}
       {ready && onboarded && <AudioMiniPlayer />}
+      {ready && onboarded && <CompanionIntro />}
       <Snackbar
         open={!!notify}
         autoHideDuration={4000}

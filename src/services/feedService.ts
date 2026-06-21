@@ -92,6 +92,9 @@ class FeedService {
       const union = [...new Set([...cur, ...voters])];
       if (union.length !== cur.length) { existing.reactions[emoji] = union; changed = true; }
     }
+    // Recover media: if a richer copy arrives and ours lost it, adopt it. We
+    // never clear existing media from an incoming copy that's missing it.
+    if (post.media?.length && !existing.media?.length) { existing.media = post.media; changed = true; }
     if (changed) { await storage.putPost(existing); bus.emit("feed:updated", undefined); }
   }
 

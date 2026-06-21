@@ -6,6 +6,7 @@ import AudiotrackRoundedIcon from "@mui/icons-material/AudiotrackRounded";
 import AutoFixHighRoundedIcon from "@mui/icons-material/AutoFixHighRounded";
 import GlassCard from "@/components/common/GlassCard";
 import GifPicker from "@/components/common/GifPicker";
+import { compressPostImage } from "@/lib/image";
 import { feedService } from "@/services/feedService";
 import { peerService } from "@/services/peerService";
 import { companionService } from "@/services/companionService";
@@ -26,8 +27,10 @@ export default function Composer() {
 
   async function attach(file?: File) {
     if (!file) return;
-    const url = await new Promise<string>((res) => { const r = new FileReader(); r.onload = () => res(r.result as string); r.readAsDataURL(file); });
-    setMedia((m) => [...m, { type: "image", url, mime: file.type, bytes: file.size }]);
+    // Downscale so the image is small enough to persist locally and sync over
+    // the relay (full-res photos get dropped on round-trip).
+    const url = await compressPostImage(file);
+    setMedia((m) => [...m, { type: "image", url, mime: file.type === "image/gif" ? "image/gif" : "image/jpeg", bytes: url.length }]);
   }
 
   async function attachAudio(file?: File) {

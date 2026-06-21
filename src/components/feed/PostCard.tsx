@@ -17,6 +17,7 @@ import { audioPlayerService } from "@/services/audioPlayerService";
 import { factCheckService, type FactCheck } from "@/services/factCheckService";
 import FactCheckRoundedIcon from "@mui/icons-material/FactCheckRounded";
 import { emojify } from "@/lib/emoticons";
+import { compressPostImage } from "@/lib/image";
 import GifPicker from "@/components/common/GifPicker";
 import { bus, toast } from "@/lib/events";
 import { newId } from "@/lib/id";
@@ -211,8 +212,8 @@ function ReplyComposer({ parentId, placeholder, autoFocus, onPosted }: { parentI
   const fileRef = useRef<HTMLInputElement>(null);
   async function attach(file?: File) {
     if (!file) return;
-    const url = await new Promise<string>((res) => { const r = new FileReader(); r.onload = () => res(r.result as string); r.readAsDataURL(file); });
-    setMedia((m) => [...m, { type: "image", url, mime: file.type, bytes: file.size }]);
+    const url = await compressPostImage(file);   // keep it small so it persists/syncs
+    setMedia((m) => [...m, { type: "image", url, mime: file.type === "image/gif" ? "image/gif" : "image/jpeg", bytes: url.length }]);
   }
   async function send() {
     const t = text.trim();
