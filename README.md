@@ -114,6 +114,62 @@ yours, assembled from the whole open web, on your terms — not a corporation's.
 
 ---
 
+## Distributed fetching — the readers *are* the server
+
+Pulling RSS still costs *some* compute — somebody has to actually hit each feed.
+A normal app pays a server farm to poll thousands of feeds around the clock.
+ZuccBook does something stranger: **the readers do it, together, exactly once.**
+
+Every feed carries a tiny **shared "last-fetched" stamp** on the
+[Gun.js](https://gun.eco/) graph. When you refresh, your device looks at only the
+feeds *you personally follow*, and only pulls the ones **nobody has fetched in the
+last hour**. Whatever you pull lands on the shared timeline, so everyone else just
+*receives* it — they never re-fetch it. So if you follow feeds 1–3 and your friend
+follows 2–4, and you refresh first, you grab 1–3; when they refresh, 2 and 3 are
+already fresh, so they only pull 4.
+
+The result is genuinely cool:
+
+- **No server polls anything** — the work is spread across the exact people who
+  care about each feed, so nobody pays to fetch the whole internet, only the
+  slivers real humans actually read.
+- **It self-balances** — the more readers a feed has, the less often any one of
+  them has to do the pull.
+- **The "you're contributing compute" line is literally true** — when the feed
+  refreshes, your device is doing a real, relevant, un-duplicated piece of work on
+  behalf of everyone who follows those same feeds.
+
+The whole app's news layer runs on borrowed slices of its readers' laptops and
+phones — no cron job, no cloud, no bill.
+
+---
+
+## Emergent collective memory
+
+Here's the part that feels almost alive. With no server, where does the *history*
+live? **In the swarm — and it heals itself.**
+
+When any two people connect peer-to-peer, their apps quietly **reconcile their
+timelines**: each one tells the other which posts it already has, and they
+**backfill each other's gaps** — never deleting, never duplicating, only filling in
+what's missing. Combined with the durable [Gun.js](https://gun.eco/) graph that
+persists posts across sessions, this means the network's memory isn't stored in one
+place — it's **smeared across everyone who's ever been online**, and every new
+connection makes it more complete.
+
+So picture it: someone's been on the network for months, posting and collecting a
+deep timeline. You sign up today. The moment you're both online, your app and
+theirs shake hands and sync — and **you can scroll back through everything they
+could see, as if you'd been here the whole time.** Nobody "uploaded the database."
+There is no database. The history simply *emerges* from people meeting, the same way
+a rumor spreads through a town until everyone knows it — except here it's exact,
+signed, and lossless.
+
+No central archive. No "you had to be there." Just a collective memory that
+**reassembles itself out of the people who hold it.**
+
+---
+
 ## Posting is permanent — by design
 
 There's a flip side to having no central server: **there's no central server to delete from.**
