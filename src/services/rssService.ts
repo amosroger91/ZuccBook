@@ -14,6 +14,7 @@ import type { Post } from "@/types";
 import { storage } from "./storage";
 import { feedService } from "./feedService";
 import { embed } from "@/lib/embeddings";
+import { decodeEntities } from "@/lib/htmlEntities";
 import { bus } from "@/lib/events";
 
 export type FeedKind = "rss" | "youtube" | "podcast" | "cve";
@@ -154,7 +155,7 @@ export const DEFAULT_TOPICS = [
 const DEFAULT: RssConfig = { topics: [...DEFAULT_TOPICS], custom: [], disabled: [], seen: [], lastRun: 0 };
 
 function hash(s: string): string { let h = 0; for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0; return Math.abs(h).toString(36); }
-function stripHtml(s: string): string { return s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(); }
+function stripHtml(s: string): string { return decodeEntities(s.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim(); }
 
 export interface RssItem { title: string; link: string; summary: string; image?: string; published: number; }
 
@@ -266,7 +267,7 @@ class RssService {
     const items: RssItem[] = [];
     for (const n of nodes.slice(0, 12)) {
       const get = (sel: string) => n.querySelector(sel)?.textContent?.trim() || "";
-      const title = get("title");
+      const title = decodeEntities(get("title"));
       let link = get("link");
       if (!link) link = n.querySelector("link")?.getAttribute("href") || "";
       const descRaw = get("description") || get("summary") || get("content");

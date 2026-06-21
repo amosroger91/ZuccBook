@@ -22,6 +22,7 @@ import { factCheckService, type FactCheck } from "@/services/factCheckService";
 import FactCheckRoundedIcon from "@mui/icons-material/FactCheckRounded";
 import ReportProblemRoundedIcon from "@mui/icons-material/ReportProblemRounded";
 import { emojify } from "@/lib/emoticons";
+import { decodeEntities } from "@/lib/htmlEntities";
 import { compressPostImage } from "@/lib/image";
 import { htmlPostDoc } from "./htmlPost";
 import GifPicker from "@/components/common/GifPicker";
@@ -225,7 +226,7 @@ function LinkCard({ url }: { url: string }) {
 // Render text with clickable links. Direct image links (incl. Tenor GIFs) are
 // rendered inline as images; non-link spans get emoticons translated to emoji.
 function renderText(text: string) {
-  const parts = text.split(/(https?:\/\/[^\s]+)/g);
+  const parts = decodeEntities(text).split(/(https?:\/\/[^\s]+)/g);
   return parts.map((p, i) => {
     if (/^https?:\/\//.test(p)) {
       if (IMG_RE.test(p)) {
