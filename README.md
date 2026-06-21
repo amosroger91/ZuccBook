@@ -85,7 +85,32 @@ and open code. You are not the product. You are the owner.
   integrity — no fact-check server, no third party deciding truth for you.
 - **Live online count** + rich presence (online/idle/away/dnd + activity).
 - **Offline-first** — everything lives in your browser (IndexedDB); the UI is the
-  **Aurora** glass design system (a Vista/Aero homage).
+  **Bliss / Luna** glass design system (a Windows-XP homage).
+
+---
+
+## RSS: an old idea that quietly fixes social media
+
+ZuccBook leans hard on **[RSS](https://en.wikipedia.org/wiki/RSS)** — a 25-year-old
+open standard that big social media spent a decade burying, because it does the one
+thing their business model can't survive: it lets *you* read everything from
+*everywhere* without an algorithm deciding what you deserve to see.
+
+Here's the humility most platforms refuse to admit: **we are not the whole
+internet.** Facebook, X, and TikTok all pretend their walled garden *is* the world,
+and trap you inside it. ZuccBook does the opposite — it assumes the good stuff lives
+out *there*, on everyone else's timelines, and simply **tunes in.** Through RSS,
+your ZuccBook timeline can monitor *other* timelines: news sites, YouTube channels,
+**TikTok creators**, podcasts, subreddits, GitHub releases, a daily Bible verse —
+any feed on the open web. The "RSS Bot" pulls them in and posts them right alongside
+your friends' posts.
+
+And the part that matters most: **you control your own algorithm.** There is no
+engagement-maximizing black box optimizing for outrage to sell ads. *You* pick the
+topics, *you* toggle each individual source on or off, *you* choose the ranking
+(Newest / For You / Trending / Discovery), and the ranking that does run runs **on
+your device** where you can inspect exactly why anything surfaced. The feed is
+yours, assembled from the whole open web, on your terms — not a corporation's.
 
 ---
 
