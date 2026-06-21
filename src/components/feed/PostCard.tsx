@@ -384,7 +384,7 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
   }
 
   return (
-    <GlassCard id={`post-${post.id}`} sx={{ mb: 1.5, p: { xs: 1.5, sm: 2 }, scrollMarginTop: 70, transition: "box-shadow .25s ease, border-color .25s ease", "&:hover": { boxShadow: "0 4px 18px rgba(20,40,80,0.08)" }, "&.zb-focus": { boxShadow: "0 0 0 3px rgba(58,155,240,0.7)" } }}>
+    <GlassCard id={`post-${post.id}`} sx={{ mb: 1.5, px: { xs: 1.5, sm: 2 }, py: "20px", scrollMarginTop: 70, transition: "box-shadow .25s ease, border-color .25s ease", "&:hover": { boxShadow: "0 4px 18px rgba(20,40,80,0.08)" }, "&.zb-focus": { boxShadow: "0 0 0 3px rgba(58,155,240,0.7)" } }}>
       <Stack direction="row" spacing={1.25}>
         <Box onClick={visit} sx={{ cursor: canVisit ? "pointer" : "default", flex: "0 0 auto" }}>
           <UserAvatar pk={post.author} name={post.authorName} avatar={post.authorAvatar} size={44} />
