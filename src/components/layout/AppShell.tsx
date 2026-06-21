@@ -18,6 +18,7 @@ import StorefrontRoundedIcon from "@mui/icons-material/StorefrontRounded";
 import AccountBalanceWalletRoundedIcon from "@mui/icons-material/AccountBalanceWalletRounded";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
+import InfoRoundedIcon from "@mui/icons-material/InfoRounded";
 import LocalCafeRoundedIcon from "@mui/icons-material/LocalCafeRounded";
 import { useStore } from "@/store/useStore";
 import UserAvatar from "@/components/common/UserAvatar";
@@ -35,6 +36,7 @@ const NAV = [
   { to: "/wallet", label: "Wallet", icon: <AccountBalanceWalletRoundedIcon /> },
   { to: "/profile", label: "Profile", icon: <PersonRoundedIcon /> },
   { to: "/settings", label: "Settings", icon: <SettingsRoundedIcon /> },
+  { to: "/about", label: "About", icon: <InfoRoundedIcon /> },
 ];
 
 const STATUS_COLOR: Record<string, string> = { online: "#54c95a", idle: "#ffcc66", away: "#ff9a5d", dnd: "#ff5d7a", offline: "#7a85a8" };

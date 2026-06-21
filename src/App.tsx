@@ -18,6 +18,7 @@ import ListenView from "@/components/listen/ListenView";
 import CompanionView from "@/components/companion/CompanionView";
 import ProfileView from "@/components/profile/ProfileView";
 import SettingsView from "@/components/settings/SettingsView";
+import AboutView from "@/components/about/AboutView";
 import TopicsView from "@/components/topics/TopicsView";
 import MarketView from "@/components/market/MarketView";
 import WalletView from "@/components/wallet/WalletView";
@@ -69,6 +70,7 @@ export default function App() {
             <Route path="/profile" element={<ProfileView />} />
             <Route path="/u/:pk" element={<ProfileView />} />
             <Route path="/settings" element={<SettingsView />} />
+            <Route path="/about" element={<AboutView />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AppShell>

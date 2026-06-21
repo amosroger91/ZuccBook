@@ -18,6 +18,7 @@ import { trustService } from "./trustService";
 import { bestModelForHardware, isWebGPU } from "./companionService";
 import { audioPlayerService } from "./audioPlayerService";
 import { factCheckService } from "./factCheckService";
+import { changelogService } from "./changelogService";
 import { alertsService } from "./alertsService";
 import type { AppSettings } from "@/types";
 
@@ -59,6 +60,7 @@ export async function boot(): Promise<BootResult> {
     peerService.start();
     profileService.publishSelf().catch(() => {}); // share my public profile
     rssService.seedDefaults().then(() => rssService.refresh()).catch(() => {}); // default subs + top-up
+    changelogService.refresh().catch(() => {}); // repo commits → timeline activity
     if (settings.showFactChecks) factCheckService.refresh().catch(() => {}); // PolitiFact index
     // Keep topping up while the app is open so new stories arrive during a
     // session; the service throttles actual fetches.
@@ -72,6 +74,8 @@ export async function onOnboarded() {
   await communityService.seedDefaults();
   gunService.start();
   peerService.start();
+  rssService.seedDefaults().then(() => rssService.refresh()).catch(() => {});
+  changelogService.refresh().catch(() => {});
 }
 
 // Earlier builds seeded sample posts; strip them so the feed only ever shows
