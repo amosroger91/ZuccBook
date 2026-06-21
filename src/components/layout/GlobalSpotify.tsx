@@ -16,9 +16,12 @@ export default function GlobalSpotify() {
   useEffect(() => {
     const off = bus.on("spotify:play", ({ embedUrl, dockId: d }) => {
       dockId.current = d; setUrl(embedUrl);
-      bus.emit("media:play", { id: "music" }); // stop YT feed video / radio / mp3
+      bus.emit("media:play", { id: "spotify" }); // stop YT feed video / radio / mp3
     });
-    return off;
+    // Another source started (mp3, radio, a video). We can't pause a Spotify
+    // embed via API, so stop it by tearing the iframe down.
+    const offMedia = bus.on("media:play", ({ id }) => { if (id !== "spotify") { dockId.current = null; setUrl(null); } });
+    return () => { off(); offMedia(); };
   }, []);
 
   useEffect(() => {

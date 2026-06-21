@@ -56,7 +56,8 @@ function SpotifyCard({ kind, id }: { kind: string; id: string }) {
   const [active, setActive] = useState(false);
   useEffect(() => {
     const off = bus.on("spotify:play", ({ dockId: d }) => { if (d !== dockId.current) setActive(false); });
-    const offMedia = bus.on("media:play", ({ id }) => { if (id !== "music") setActive(false); });
+    // Revert to the overlay when any non-Spotify source takes over (mp3, video…).
+    const offMedia = bus.on("media:play", ({ id }) => { if (id !== "spotify") setActive(false); });
     return () => { off(); offMedia(); };
   }, []);
   const start = () => { setActive(true); bus.emit("spotify:play", { embedUrl: `https://open.spotify.com/embed/${kind}/${id}?utm_source=zuccbook`, dockId: dockId.current }); };
