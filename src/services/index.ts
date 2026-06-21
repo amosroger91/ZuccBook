@@ -16,6 +16,7 @@ import { gunService } from "./gunService";
 import { profileService } from "./profileService";
 import { trustService } from "./trustService";
 import { bestModelForHardware, isWebGPU } from "./companionService";
+import { audioPlayerService } from "./audioPlayerService";
 import type { AppSettings } from "@/types";
 
 export interface BootResult { onboarded: boolean; settings: AppSettings }
@@ -38,6 +39,7 @@ export async function boot(): Promise<BootResult> {
   await storage.saveSettings(settings);
 
   await feedService.init();
+  audioPlayerService.init();           // shared mp3 player joins media exclusivity
   await trustService.load();           // load my web-of-trust edges
   await purgeSeededPosts();            // remove demo posts left by earlier builds
   const me = await identityService.load();

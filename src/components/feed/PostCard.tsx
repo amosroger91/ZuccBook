@@ -4,6 +4,7 @@ import AddReactionRoundedIcon from "@mui/icons-material/AddReactionRounded";
 import VerifiedRoundedIcon from "@mui/icons-material/VerifiedRounded";
 import ReplyRoundedIcon from "@mui/icons-material/ReplyRounded";
 import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
+import PauseRoundedIcon from "@mui/icons-material/PauseRounded";
 import MoreVertRoundedIcon from "@mui/icons-material/MoreVertRounded";
 import GavelRoundedIcon from "@mui/icons-material/GavelRounded";
 import ImageRoundedIcon from "@mui/icons-material/ImageRounded";
@@ -12,6 +13,7 @@ import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import { Menu, MenuItem, LinearProgress } from "@mui/material";
 import { linkPreviewService, type Preview } from "@/services/linkPreviewService";
 import { trustService } from "@/services/trustService";
+import { audioPlayerService } from "@/services/audioPlayerService";
 import { emojify } from "@/lib/emoticons";
 import GifPicker from "@/components/common/GifPicker";
 import { bus, toast } from "@/lib/events";
@@ -43,16 +45,51 @@ function firstLink(text: string): string | null {
   return urls.find((u) => !IMG_RE.test(u) && !YT_RE.test(u) && !SPOTIFY_RE.test(u)) ?? null;
 }
 
-// Spotify embed — an official inline player. The compact 80px height is used
-// for a single track; collections get the taller 380px playlist player.
+// Spotify — click to activate, then the global Spotify player owns the embed so
+// it persists into a floating mini player when you scroll away (its own
+// controls let you pause). Activating it stops any other playing media.
 function SpotifyCard({ kind, id }: { kind: string; id: string }) {
   const tall = kind === "playlist" || kind === "album" || kind === "show";
+  const dockId = useRef("spd-" + newId());
+  const [active, setActive] = useState(false);
+  useEffect(() => {
+    const off = bus.on("spotify:play", ({ dockId: d }) => { if (d !== dockId.current) setActive(false); });
+    const offMedia = bus.on("media:play", ({ id }) => { if (id !== "music") setActive(false); });
+    return () => { off(); offMedia(); };
+  }, []);
+  const start = () => { setActive(true); bus.emit("spotify:play", { embedUrl: `https://open.spotify.com/embed/${kind}/${id}?utm_source=zuccbook`, dockId: dockId.current }); };
   return (
-    <Box sx={{ mt: 1, borderRadius: 1.5, overflow: "hidden", border: "1px solid var(--bl-line)" }}>
-      <Box component="iframe" title="Spotify" loading="lazy"
-        src={`https://open.spotify.com/embed/${kind}/${id}?utm_source=zuccbook`}
-        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-        sx={{ width: "100%", height: tall ? 380 : 80, border: 0, display: "block" }} />
+    <Box sx={{ mt: 1, position: "relative", height: tall ? 380 : 80, borderRadius: 1.5, overflow: "hidden", border: "1px solid var(--bl-line)" }}>
+      {active ? (
+        <Box id={dockId.current} sx={{ position: "absolute", inset: 0 }} />
+      ) : (
+        <Box onClick={start} sx={{ position: "absolute", inset: 0, cursor: "pointer", display: "flex", alignItems: "center", gap: 1.5, px: 2, color: "#fff", background: "linear-gradient(135deg,#1db954,#0a7d35)" }}>
+          <Box sx={{ width: 44, height: 44, borderRadius: "50%", bgcolor: "rgba(0,0,0,0.25)", display: "grid", placeItems: "center" }}><PlayArrowRoundedIcon /></Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography sx={{ fontWeight: 800 }} noWrap>Play on Spotify</Typography>
+            <Typography variant="caption" sx={{ opacity: 0.85 }}>{kind} · keeps playing in a mini player as you scroll</Typography>
+          </Box>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+// A shared mp3 attached to a post/reply. Tapping plays it in the global audio
+// bar (play/pause/seek/volume), which persists across scroll and navigation.
+function AudioCard({ url, title }: { url: string; title: string }) {
+  const [playing, setPlaying] = useState(audioPlayerService.isCurrent(url) && audioPlayerService.playing);
+  useEffect(() => bus.on("audio:now", (s) => setPlaying(s.url === url && s.playing)), [url]);
+  const toggle = () => { if (audioPlayerService.isCurrent(url)) audioPlayerService.toggle(); else audioPlayerService.play({ url, title }); };
+  return (
+    <Box onClick={toggle} sx={{ mt: 1, p: 1, display: "flex", alignItems: "center", gap: 1.5, borderRadius: 1.5, border: "1px solid var(--bl-line)", bgcolor: "var(--bl-white)", cursor: "pointer" }}>
+      <Box sx={{ width: 40, height: 40, flex: "0 0 auto", borderRadius: 1.5, display: "grid", placeItems: "center", color: "#fff", background: "linear-gradient(135deg,#7c5cff,#4a1fd0)" }}>
+        {playing ? <PauseRoundedIcon /> : <PlayArrowRoundedIcon />}
+      </Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>{title || "Audio track"}</Typography>
+        <Typography variant="caption" color="text.secondary">{playing ? "Playing — controls in the bottom bar" : "Tap to play · mp3"}</Typography>
+      </Box>
     </Box>
   );
 }
@@ -189,7 +226,9 @@ function ReplyNode({ reply, replyMap, mePk, onReact, depth }: { reply: Post; rep
             <Typography variant="caption" color="text.secondary">· {relativeTime(reply.createdAt)}</Typography>
           </Stack>
           {reply.text && <Typography component="div" variant="body2" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{renderText(reply.text)}</Typography>}
-          {reply.media?.map((m, i) => m.type === "image" ? <Box key={i} component="img" src={m.url} loading="lazy" sx={{ mt: 0.5, maxWidth: "100%", maxHeight: 240, borderRadius: 1.5, border: "1px solid var(--bl-line)" }} /> : null)}
+          {reply.media?.map((m, i) => m.type === "image"
+            ? <Box key={i} component="img" src={m.url} loading="lazy" sx={{ mt: 0.5, maxWidth: "100%", maxHeight: 240, borderRadius: 1.5, border: "1px solid var(--bl-line)" }} />
+            : m.type === "audio" ? <AudioCard key={i} url={m.url} title={m.alt || "Audio track"} /> : null)}
           <Stack direction="row" alignItems="center" spacing={1}>
             <Box sx={{ flex: 1 }}><ReactRow post={reply} me={mePk} onAdd={onReact} /></Box>
             <Button size="small" startIcon={<ReplyRoundedIcon fontSize="small" />} onClick={() => setShowBox((v) => !v)} sx={{ color: "text.secondary", flex: "0 0 auto" }}>
@@ -308,6 +347,8 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
             // uploaded images (no link in text)
             return post.media?.map((m, i) => (m.type === "image" ? <Box key={i} component="img" src={m.url} sx={{ mt: 1, maxWidth: "100%", maxHeight: 360, borderRadius: 2, border: "1px solid var(--bl-line)" }} /> : null));
           })()}
+
+          {post.media?.filter((m) => m.type === "audio").map((m, i) => <AudioCard key={i} url={m.url} title={m.alt || "Audio track"} />)}
 
           {post.poll && (
             <Stack spacing={0.5} sx={{ mt: 1 }}>

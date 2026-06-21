@@ -62,9 +62,11 @@ export default function GlobalFeedVideo() {
       bus.emit("media:play", { id: "feedvideo" });   // pause radio / watch party
       ensurePlayer(videoId);
     });
-    // Another media source took over → pause our feed video (stay mounted/mini).
+    // Another media source took over (radio, mp3, Spotify, watch party) → stop
+    // and dismiss our feed video entirely, so it doesn't linger as a stray mini
+    // player or play audio underneath the new source.
     const offMedia = bus.on("media:play", ({ id }) => {
-      if (id !== "feedvideo" && player.current) { try { player.current.pauseVideo(); } catch {} }
+      if (id !== "feedvideo") { try { player.current?.stopVideo?.(); } catch {} dockId.current = null; vid.current = null; setActive(false); }
     });
     return () => { off(); offMedia(); };
   }, []);

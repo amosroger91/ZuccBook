@@ -1,6 +1,8 @@
-import { useEffect, useState, useCallback } from "react";
-import { Box, ToggleButtonGroup, ToggleButton, Stack, Typography, Button, useMediaQuery, LinearProgress, Chip, CircularProgress } from "@mui/material";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { Box, ToggleButtonGroup, ToggleButton, Stack, Typography, Button, useMediaQuery, LinearProgress, Chip, CircularProgress, TextField, InputAdornment, IconButton } from "@mui/material";
 import LocalCafeRoundedIcon from "@mui/icons-material/LocalCafeRounded";
+import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+import ClearRoundedIcon from "@mui/icons-material/ClearRounded";
 import Composer from "./Composer";
 import PostCard from "./PostCard";
 import GlassCard from "@/components/common/GlassCard";
@@ -10,6 +12,7 @@ import { rssService } from "@/services/rssService";
 import { storage } from "@/services/storage";
 import { useStore } from "@/store/useStore";
 import { bus } from "@/lib/events";
+import { matchesFilter, matchesQuery, type ContentFilter } from "@/lib/postType";
 import type { Post, RecommendationReason, FeedAlgorithm } from "@/types";
 
 const ALGOS: { id: FeedAlgorithm; label: string }[] = [
@@ -18,6 +21,16 @@ const ALGOS: { id: FeedAlgorithm; label: string }[] = [
   { id: "trending", label: "Trending" },
   { id: "discovery", label: "Discovery" },
   { id: "friends", label: "Circle" },
+];
+
+const FILTERS: { id: ContentFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "text", label: "Text" },
+  { id: "video", label: "Videos" },
+  { id: "image", label: "Images & GIFs" },
+  { id: "music", label: "Music" },
+  { id: "link", label: "Links" },
+  { id: "poll", label: "Polls" },
 ];
 
 export default function FeedView() {
@@ -30,8 +43,16 @@ export default function FeedView() {
   const [refreshing, setRefreshing] = useState(false);
   const [replies, setReplies] = useState<Map<string, Post[]>>(new Map());
   const [verdicts, setVerdicts] = useState<Map<string, import("@/types").ModerationVerdict>>(new Map());
+  const [filter, setFilter] = useState<ContentFilter>("all");
+  const [query, setQuery] = useState("");
 
   const algo = settings.feedAlgorithm;
+
+  // Client-side content-type + keyword filtering over the ranked feed.
+  const shown = useMemo(
+    () => posts.filter((p) => matchesFilter(p, filter) && matchesQuery(p, query)),
+    [posts, filter, query],
+  );
 
   const refresh = useCallback(async () => {
     const subscribedTopics = (await rssService.config()).topics;
@@ -64,6 +85,27 @@ export default function FeedView() {
 
         <Composer />
 
+        {/* Content-type filter + keyword search over the feed */}
+        <Stack spacing={1} sx={{ mb: 2 }}>
+          <TextField
+            size="small" fullWidth placeholder="Search posts, people, #tags…" value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            InputProps={{
+              startAdornment: <InputAdornment position="start"><SearchRoundedIcon fontSize="small" /></InputAdornment>,
+              endAdornment: query ? <InputAdornment position="end"><IconButton size="small" onClick={() => setQuery("")}><ClearRoundedIcon fontSize="small" /></IconButton></InputAdornment> : undefined,
+            }}
+          />
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+            {FILTERS.map((f) => (
+              <Chip key={f.id} label={f.label} size="small" onClick={() => setFilter(f.id)}
+                variant={filter === f.id ? "filled" : "outlined"}
+                sx={filter === f.id
+                  ? { background: "linear-gradient(135deg,#3f97ff,#1668e0)", color: "#fff", fontWeight: 700 }
+                  : { borderColor: "rgba(58,155,240,0.3)", color: "text.secondary" }} />
+            ))}
+          </Box>
+        </Stack>
+
         {refreshing && (
           <GlassCard sx={{ mb: 1.5, p: 0, overflow: "hidden" }}>
             <Stack direction="row" alignItems="center" spacing={1} sx={{ px: 2, py: 1 }}>
@@ -76,10 +118,16 @@ export default function FeedView() {
           </GlassCard>
         )}
 
-        {posts.length === 0 && (
-          <GlassCard><Typography color="text.secondary">No posts match this view yet. Switch algorithms or post something — your feed is generated locally.</Typography></GlassCard>
+        {shown.length === 0 && (
+          <GlassCard><Typography color="text.secondary">
+            {posts.length === 0
+              ? "No posts match this view yet. Switch algorithms or post something — your feed is generated locally."
+              : (filter !== "all" || query)
+                ? "No posts match your filter/search. Try a different content type or clear the search."
+                : "No posts to show."}
+          </Typography></GlassCard>
         )}
-        {posts.map((p) => <PostCard key={p.id} post={p} reason={reasons.get(p.id)} replies={replies.get(p.id) ?? []} replyMap={replies} verdict={verdicts.get(p.id)} />)}
+        {shown.map((p) => <PostCard key={p.id} post={p} reason={reasons.get(p.id)} replies={replies.get(p.id) ?? []} replyMap={replies} verdict={verdicts.get(p.id)} />)}
       </Box>
 
       {!compact && (

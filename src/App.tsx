@@ -22,8 +22,10 @@ import TopicsView from "@/components/topics/TopicsView";
 import MarketView from "@/components/market/MarketView";
 import WalletView from "@/components/wallet/WalletView";
 import MiniPlayer from "@/components/layout/MiniPlayer";
+import AudioMiniPlayer from "@/components/layout/AudioMiniPlayer";
 import GlobalWatchPlayer from "@/components/layout/GlobalWatchPlayer";
 import GlobalFeedVideo from "@/components/layout/GlobalFeedVideo";
+import GlobalSpotify from "@/components/layout/GlobalSpotify";
 
 export default function App() {
   const { ready, onboarded, setReady, setPresence, setOnlineCount } = useStore();
@@ -72,7 +74,9 @@ export default function App() {
       )}
       {ready && onboarded && <GlobalWatchPlayer />}
       {ready && onboarded && <GlobalFeedVideo />}
+      {ready && onboarded && <GlobalSpotify />}
       {ready && onboarded && <MiniPlayer />}
+      {ready && onboarded && <AudioMiniPlayer />}
       <Snackbar
         open={!!notify}
         autoHideDuration={4000}

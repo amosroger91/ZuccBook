@@ -31,6 +31,9 @@ export interface ZuccBookEvents {
   "stage:out": WatchPartyState;  // local watch-party change to broadcast
   "watch:start": { videoId: string };  // start/replace the watch-party video
   "feedvideo:play": { videoId: string; dockId: string };  // play a feed video in the global player
+  "spotify:play": { embedUrl: string; dockId: string };   // play a Spotify embed in the global player
+  "audio:now": { title: string | null; playing: boolean; url: string | null };  // shared mp3 player state
+  "audio:time": { cur: number; dur: number };             // shared mp3 player progress
   "media:play": { id: string };         // some media started — others should pause
   "companion:thinking": boolean;
   "rss:refreshing": boolean;
