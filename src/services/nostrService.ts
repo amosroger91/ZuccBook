@@ -223,7 +223,7 @@ class NostrService {
     this.queryOnce(RELAYS, { kinds: [0], authors: [pubkey], limit: 1 }, 6000).then((evs) => { if (evs[0]) this.absorbProfile(evs[0]); }).catch(() => {});
   }
 
-  private absorbProfile(e: NostrEvent) {
+  private async absorbProfile(e: NostrEvent) {
     try {
       const m = JSON.parse(e.content || "{}");
       const prof: Profile = {
@@ -238,6 +238,17 @@ class NostrService {
       };
       this.profiles.set(e.pubkey, prof);
       bus.emit("profile:update", prof);
+      // Back-fill the photo + display name onto notes we ingested BEFORE this
+      // profile loaded (kind-0 metadata arrives a beat after the note), so their
+      // cards show the real Nostr avatar instead of just an npub stub.
+      try {
+        const mine = await storage.postsByAuthor("nostr:" + e.pubkey);
+        for (const p of mine) {
+          const avatar = prof.avatar || p.authorAvatar;
+          const name = prof.username || p.authorName;
+          if (p.authorAvatar !== avatar || p.authorName !== name) { p.authorAvatar = avatar; p.authorName = name; await storage.putPost(p); }
+        }
+      } catch {}
       bus.emit("feed:updated", undefined);
     } catch {}
   }

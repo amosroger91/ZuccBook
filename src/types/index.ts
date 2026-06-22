@@ -304,5 +304,6 @@ export interface AppSettings {
   filterNsfw: boolean;          // hide adult images (on-device nsfwjs) & gate explicit posts
   censorProfanity: boolean;     // mask cuss words inline (f**k) instead of hiding the post
   nostrEnabled: boolean;        // pull Nostr notes into the feed + publish replies/reactions
-  autoTranslate: boolean;       // auto-translate non-English feed posts to English
+  autoTranslate: boolean;       // auto-translate non-English feed posts to English (on by default)
+  autoTranslateInit?: boolean;  // one-time migration marker for the default-on flip
 }

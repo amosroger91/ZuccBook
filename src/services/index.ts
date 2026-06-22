@@ -31,6 +31,9 @@ export async function boot(): Promise<BootResult> {
   // (prevents the browser from evicting the IndexedDB that holds your identity).
   void requestPersistentStorage();
   const settings: AppSettings = { ...DEFAULT_SETTINGS, ...(await storage.loadSettings()) };
+  // One-time: auto-translate to English is now ON by default (it shipped briefly as
+  // off). Flip existing installs once, then respect whatever the user sets after.
+  if (!settings.autoTranslateInit) { settings.autoTranslate = true; settings.autoTranslateInit = true; }
   // Auto-enable the on-device LLM on WebGPU-capable devices (unless the user
   // explicitly opted out in Settings) — the model downloads automatically.
   if (typeof navigator !== "undefined" && (navigator as any).gpu && !settings.llmOptOut) {

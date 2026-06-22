@@ -366,17 +366,31 @@ function PostText({ text, censor, rich }: { text: string; censor: boolean; rich?
   const [showOriginal, setShowOriginal] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [failed, setFailed] = useState(false);
+  // True once we know the post is actually English — either a heuristic
+  // false-positive the translator corrected (detected source = en) or text that
+  // came back unchanged. Hides the translate control so it ONLY ever shows on a
+  // genuinely foreign post.
+  const [confirmedEnglish, setConfirmedEnglish] = useState(false);
   const translatable = useMemo(() => probablyNotEnglish(text), [text]);
 
   async function doTranslate() {
     if (trans || translating) return;
     setTranslating(true); setFailed(false);
-    try { setTrans(await translateService.toEnglish(text)); }
-    catch { setFailed(true); }
+    try {
+      const res = await translateService.toEnglish(text);
+      const src = (res.src || "").toLowerCase();
+      // The translator's own language detection is the source of truth: if the
+      // text was already English (or came back unchanged), there's nothing to show.
+      if (!src || src.startsWith("en") || res.text.trim() === text.trim()) setConfirmedEnglish(true);
+      else setTrans(res);
+    } catch { setFailed(true); }
     finally { setTranslating(false); }
   }
-  // Auto-translate non-English posts when the setting is on.
-  useEffect(() => { if (autoTranslate && translatable && !trans && !translating && !failed) doTranslate(); }, [autoTranslate, translatable]);
+  // Auto-translate foreign-language posts to English (ON by default; the Settings
+  // toggle opts out). Only the visible cards mount, so this stays bounded.
+  useEffect(() => {
+    if (autoTranslate !== false && translatable && !trans && !translating && !failed && !confirmedEnglish) doTranslate();
+  }, [autoTranslate, translatable]);
 
   const showingTrans = !!trans && !showOriginal;
   const body = showingTrans ? trans!.text : text;
@@ -413,8 +427,9 @@ function PostText({ text, censor, rich }: { text: string; censor: boolean; rich?
             {expanded ? "See less" : "See more"}
           </Button>
         )}
-        {/* Translate control: offered on non-English posts; lets you flip back too. */}
-        {(translatable || trans) && (
+        {/* Translate control — ONLY on genuinely foreign posts (vanishes once the
+            translator confirms English). Flips between original and translation. */}
+        {(trans || (translatable && !confirmedEnglish)) && (
           trans
             ? <Button size="small" disableRipple startIcon={<TranslateRoundedIcon sx={{ fontSize: 16 }} />} onClick={() => setShowOriginal((v) => !v)}
                 sx={{ mt: 0.25, px: 0.5, textTransform: "none", fontWeight: 700, color: "text.secondary", "&:hover": { bgcolor: "transparent", textDecoration: "underline" } }}>
@@ -547,8 +562,11 @@ function ModInfo({ verdict }: { verdict: ModerationVerdict }) {
 const HASHTAG_MAX = 10;
 function Hashtags({ tags }: { tags: string[] }) {
   const [expanded, setExpanded] = useState(false);
-  const shown = expanded ? tags : tags.slice(0, HASHTAG_MAX);
-  const extra = tags.length - HASHTAG_MAX;
+  // Dedupe — a post can carry the same tag twice (e.g. RSS topic + a Nostr #t),
+  // which both renders "#news #news" and trips React's duplicate-key warning.
+  const unique = useMemo(() => [...new Set(tags)], [tags]);
+  const shown = expanded ? unique : unique.slice(0, HASHTAG_MAX);
+  const extra = unique.length - HASHTAG_MAX;
   return (
     <Box sx={{ mt: 0.75, display: "flex", flexWrap: "wrap", gap: 1, alignItems: "center" }}>
       {shown.map((t) => <Typography key={t} component="span" variant="body2" sx={{ color: "#3f7bd0", fontWeight: 600, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}>#{t}</Typography>)}
