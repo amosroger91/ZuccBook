@@ -39,7 +39,7 @@ import { useNavigate } from "react-router-dom";
 import { useStore } from "@/store/useStore";
 import type { Post, RecommendationReason } from "@/types";
 
-const REACTIONS = ["⭐", "🔥", "🚀", "💜", "😂", "😮", "💀", "🏳️‍🌈", "🍊", "👀", "👎", "😠"];
+const REACTIONS = ["❤️", "🔥", "😂", "😮", "💀", "🏳️‍🌈", "👀", "👎", "😠"];
 
 const YT_RE = /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/i;
 const IMG_RE = /\.(png|jpe?g|gif|webp|avif|bmp|svg)(\?[^\s]*)?$/i;
