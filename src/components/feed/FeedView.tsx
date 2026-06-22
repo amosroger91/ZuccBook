@@ -217,15 +217,17 @@ export default function FeedView() {
           />
 
           <Stack direction="row" alignItems="center" spacing={1} sx={{ flexWrap: "wrap", gap: { xs: 1, md: 1 } }}>
-            <ToggleButtonGroup
-              exclusive size="small" value={algo}
-              onChange={(_, v) => v && setSettings({ feedAlgorithm: v })}
-              sx={{ flexWrap: "wrap", "& .MuiToggleButton-root": { border: "1px solid rgba(58,155,240,0.18)", color: "text.secondary", fontSize: { xs: "0.75rem", sm: "0.875rem" }, px: { xs: 0.75, sm: 1 }, "&.Mui-selected": { background: "linear-gradient(135deg,#3f97ff,#1668e0)", color: "#ffffff" } } }}
-            >
-              {ALGOS.map((a) => <ToggleButton key={a.id} value={a.id}>{a.label}</ToggleButton>)}
-            </ToggleButtonGroup>
+            <Box sx={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', mr: 1, '& .MuiToggleButton-root': { whiteSpace: 'nowrap' } }}>
+              <ToggleButtonGroup
+                exclusive size="small" value={algo}
+                onChange={(_, v) => v && setSettings({ feedAlgorithm: v })}
+                sx={{ display: 'inline-flex', flexWrap: 'nowrap', '& .MuiToggleButton-root': { border: '1px solid rgba(58,155,240,0.18)', color: 'text.secondary', fontSize: { xs: '0.72rem', sm: '0.875rem' }, px: { xs: 0.5, sm: 1 }, '&.Mui-selected': { background: 'linear-gradient(135deg,#3f97ff,#1668e0)', color: '#ffffff' } } }}
+              >
+                {ALGOS.map((a) => <ToggleButton key={a.id} value={a.id}>{a.label}</ToggleButton>)}
+              </ToggleButtonGroup>
+            </Box>
 
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, ml: 1 }}>
+            <Box sx={{ display: 'flex', overflowX: 'auto', WebkitOverflowScrolling: 'touch', gap: 0.5, ml: 0.5, px: 0.5, '& > *': { flex: '0 0 auto' } }}>
               {FILTERS.map((f) => (
                 <Chip key={f.id} label={f.label} size="small" onClick={() => setFilter(f.id)}
                   variant={filter === f.id ? "filled" : "outlined"}
