@@ -9,6 +9,7 @@ export interface LedgerEvents {
   "identity:ready": { pk: string };
   "feed:post": Post;
   "feed:updated": void;
+  "feed:refresh": void;          // force a full feed refresh (e.g. clicking the Ledger logo)
   "feed:react-out": { postId: string; emoji: string };
   "post:publish": Post;          // persist a post to the durable graph (Gun)
   "swarm:publish": ChatMessage;  // persist a Swarm Lounge message

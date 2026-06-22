@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Box, ToggleButtonGroup, ToggleButton, Stack, Typography, Button, useMediaQuery, LinearProgress, Chip, CircularProgress, TextField, InputAdornment, IconButton, Avatar } from "@mui/material";
+import type { Theme } from "@mui/material";
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import KeyboardArrowUpRoundedIcon from "@mui/icons-material/KeyboardArrowUpRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
@@ -41,7 +42,7 @@ const FILTERS: { id: ContentFilter; label: string }[] = [
 export default function FeedView() {
   const settings = useStore((s) => s.settings);
   const setSettings = useStore((s) => s.setSettings);
-  const compact = useMediaQuery((theme) => theme.breakpoints.down("md"));
+  const compact = useMediaQuery((theme: Theme) => theme.breakpoints.down("md"));
   const [posts, setPosts] = useState<Post[]>([]);
   const [reasons, setReasons] = useState<Map<string, RecommendationReason>>(new Map());
   const [refreshing, setRefreshing] = useState(false);
@@ -151,6 +152,9 @@ export default function FeedView() {
     changelogService.refresh(true).catch(() => {});
     await refresh();
   }, [refresh]);
+
+  // The Ledger logo (and anything else) can force a feed refresh via the bus.
+  useEffect(() => bus.on("feed:refresh", () => { doRefresh(); }), [doRefresh]);
 
   // Pull/scroll-to-refresh on the app scroll container (touch on mobile, wheel on desktop).
   useEffect(() => {

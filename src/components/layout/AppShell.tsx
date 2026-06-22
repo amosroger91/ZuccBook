@@ -131,6 +131,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
     // Instant + synchronous: works mid-route-change and even when the tab is
     // backgrounded (requestAnimationFrame / smooth-scroll get paused then).
     document.getElementById("app-scroll")?.scrollTo({ top: 0 });
+    // Also kick a feed refresh. setTimeout(0) so a freshly-mounted FeedView (when
+    // arriving from another page) has subscribed before the event fires.
+    setTimeout(() => bus.emit("feed:refresh"), 0);
   };
 
   return (
