@@ -51,6 +51,7 @@ export default function FeedView() {
   const [filter, setFilter] = useState<ContentFilter>("all");
   const [scrolledDeep, setScrolledDeep] = useState(false);
   const [pull, setPull] = useState(0);   // pull-to-refresh progress (0..1.6)
+  const [newCount, setNewCount] = useState(0); // new posts held behind the pill (kept out of the feed you're reading)
 
   // show "back to top" once you've scrolled past roughly one screenful
   useEffect(() => {
@@ -108,37 +109,80 @@ export default function FeedView() {
     return () => io.disconnect();
   }, [hasMore, shown.length]);
 
-  const refresh = useCallback(async () => {
+  // Build the ranked feed (pure — no state writes). Reused by the full refresh and
+  // the background reconcile below.
+  const generateFeed = useCallback(async () => {
     const cfg = await rssService.config();
-    // generate() now returns the reply tree from its own bounded read — no separate
-    // full-store scan here (that doubled the per-refresh cost on every update).
-    const { posts, reasons, verdicts, replies } = await feedService.generate(algo, { moderation: settings.moderationProfile, subscribedTopics: cfg.topics, mutedTopics: cfg.mutedTopics, mutedFeeds: cfg.mutedFeeds, includeNostr: settings.nostrEnabled !== false, community: community ?? undefined });
-    setPosts(posts);
-    setReasons(reasons);
-    setVerdicts(verdicts);
-    setReplies(replies);
+    return feedService.generate(algo, { moderation: settings.moderationProfile, subscribedTopics: cfg.topics, mutedTopics: cfg.mutedTopics, mutedFeeds: cfg.mutedFeeds, includeNostr: settings.nostrEnabled !== false, community: community ?? undefined });
   }, [algo, settings.moderationProfile, settings.nostrEnabled, community]);
 
-  // Regenerate immediately on mount. Bus-driven updates use a leading THROTTLE: the
-  // first update after an idle gap re-ranks at once (your own post appears instantly),
-  // while a sync BURST (relay RSS dump, Nostr firehose, peer history) is coalesced to
-  // at most one re-rank per GAP — so a streaming feed never pins the main thread
-  // re-ranking on every event, and (unlike a plain debounce) never starves either.
+  // Latest displayed posts + the held ranking, for the async background reconcile
+  // (refs avoid stale closures across awaits).
+  const postsRef = useRef<Post[]>([]);
+  postsRef.current = posts;
+  const pendingRef = useRef<Awaited<ReturnType<typeof generateFeed>> | null>(null);
+
+  // FULL refresh: re-rank and replace the feed. Expected when YOU act or change the
+  // algorithm/group/explicit pull. Clears the "new posts" pill.
+  const refresh = useCallback(async () => {
+    const res = await generateFeed();
+    setPosts(res.posts); setReasons(res.reasons); setVerdicts(res.verdicts); setReplies(res.replies);
+    pendingRef.current = null; setNewCount(0);
+  }, [generateFeed]);
+
+  // BACKGROUND reconcile: a feed you're reading must NOT reorder under you as the
+  // Nostr/RSS firehose streams in — that churn feels broken. So while you're scrolled
+  // down we keep the displayed posts in their CURRENT order, only refreshing their
+  // data in place (reaction counts, etc.), and hold genuinely-new posts behind a
+  // "N new posts" pill. At the very top (nothing scrolled past) new posts just flow
+  // in, which is what you'd expect there.
+  const applyBackground = useCallback(async () => {
+    const res = await generateFeed();
+    const prev = postsRef.current;
+    const el = document.getElementById("app-scroll");
+    const atTop = !el || el.scrollTop < 40;
+    if (prev.length === 0 || atTop) {
+      setPosts(res.posts); pendingRef.current = null; setNewCount(0);
+    } else {
+      const fresh = new Map(res.posts.map((p) => [p.id, p]));
+      setPosts(prev.map((p) => fresh.get(p.id) ?? p));   // same order, fresh data
+      const prevIds = new Set(prev.map((p) => p.id));
+      pendingRef.current = res;
+      setNewCount(res.posts.filter((p) => !prevIds.has(p.id)).length);
+    }
+    setReasons(res.reasons); setVerdicts(res.verdicts); setReplies(res.replies);
+  }, [generateFeed]);
+
+  // Reveal the held posts: adopt the latest ranking and jump to the top.
+  const applyPending = useCallback(() => {
+    const res = pendingRef.current;
+    if (res) { setPosts(res.posts); setReasons(res.reasons); setVerdicts(res.verdicts); setReplies(res.replies); }
+    pendingRef.current = null; setNewCount(0);
+    document.getElementById("app-scroll")?.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  // Full refresh on mount / algo / group change. Background bus updates use a leading
+  // THROTTLE feeding the reconcile above: the first update after an idle gap applies
+  // at once, a burst coalesces to ≤1 reconcile per GAP, and it never starves.
   useEffect(() => {
     refresh();
     const GAP = 400;
     const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
     let timer: ReturnType<typeof setTimeout> | null = null;
     let last = 0;
-    const fire = () => { last = now(); timer = null; refresh(); };
+    const fire = () => { last = now(); timer = null; applyBackground(); };
     const onUpdate = () => {
       const elapsed = now() - last;
-      if (elapsed >= GAP) { if (timer) clearTimeout(timer); fire(); }   // idle → re-rank now
-      else if (!timer) timer = setTimeout(fire, GAP - elapsed);          // mid-burst → one trailing re-rank at the GAP boundary
+      if (elapsed >= GAP) { if (timer) clearTimeout(timer); fire(); }
+      else if (!timer) timer = setTimeout(fire, GAP - elapsed);
     };
     const off = bus.on("feed:updated", onUpdate);
-    return () => { off(); if (timer) clearTimeout(timer); };
-  }, [refresh]);
+    // Your OWN top-level post surfaces at the top immediately; a reply (or AI comment)
+    // just folds into its thread in place — neither should wait behind the pill, and a
+    // reply must NOT reorder the feed you're reading.
+    const offPost = bus.on("feed:post", (post) => { if (post && !post.replyTo) refresh(); else applyBackground(); });
+    return () => { off(); offPost(); if (timer) clearTimeout(timer); };
+  }, [refresh, applyBackground]);
   // Scroll to & highlight a post when an alert deep-links to it.
   useEffect(() => bus.on("focus:post", ({ postId }) => {
     // The feed is windowed for performance — if the target is past the current
@@ -268,6 +312,17 @@ export default function FeedView() {
             </Stack>
             <LinearProgress variant={rssProg.total ? "determinate" : "indeterminate"} value={rssProg.total ? (rssProg.done / rssProg.total) * 100 : undefined} sx={{ height: 3 }} />
           </GlassCard>
+        )}
+
+        {/* New posts that arrived while you were scrolled down — held here so the feed
+            you're reading never reorders under you. Tap to fold them in and jump up. */}
+        {newCount > 0 && (
+          <Box sx={{ position: "sticky", top: 8, zIndex: 6, display: "flex", justifyContent: "center", mb: 1.5, pointerEvents: "none" }}>
+            <Button onClick={applyPending} variant="contained" size="small" startIcon={<KeyboardArrowUpRoundedIcon />}
+              sx={{ pointerEvents: "auto", borderRadius: 999, textTransform: "none", fontWeight: 800, px: 2.5, boxShadow: 4, background: "linear-gradient(135deg,#3f97ff,#1668e0)", "&:hover": { background: "linear-gradient(135deg,#3f97ff,#0a55cf)" } }}>
+              {newCount} new post{newCount > 1 ? "s" : ""}
+            </Button>
+          </Box>
         )}
 
         {shown.length === 0 && (
