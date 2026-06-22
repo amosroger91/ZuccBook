@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "react";
-import { Stack, TextField, Button, IconButton, Box, Chip, Tooltip, Typography } from "@mui/material";
+import { Stack, TextField, Button, IconButton, Box, Chip, Tooltip, Typography, Select, MenuItem } from "@mui/material";
 import ImageRoundedIcon from "@mui/icons-material/ImageRounded";
 import GifBoxRoundedIcon from "@mui/icons-material/GifBoxRounded";
 import AudiotrackRoundedIcon from "@mui/icons-material/AudiotrackRounded";
@@ -11,6 +11,7 @@ import GifPicker from "@/components/common/GifPicker";
 import HtmlComposer from "./HtmlComposer";
 import { compressPostImage } from "@/lib/image";
 import { feedService } from "@/services/feedService";
+import { nostrService } from "@/services/nostrService";
 import { peerService } from "@/services/peerService";
 import { companionService } from "@/services/companionService";
 import { moderationService } from "@/services/moderationService";
@@ -22,6 +23,8 @@ import type { MediaRef } from "@/types";
 export default function Composer({ community }: { community?: string }) {
   const me = useStore((s) => s.me);
   const moderation = useStore((s) => s.settings.moderationProfile);
+  const nostrEnabled = useStore((s) => s.settings.nostrEnabled !== false);
+  const [target, setTarget] = useState<"ledger" | "both" | "nostr">("ledger");
   const [text, setText] = useState("");
   const [media, setMedia] = useState<MediaRef[]>([]);
   const [gifOpen, setGifOpen] = useState(false);
@@ -60,10 +63,19 @@ export default function Composer({ community }: { community?: string }) {
     if (!body && !media.length) return;
     const verdict = moderationService.classify(body, moderation);
     if (verdict.action === "flag" || verdict.action === "hide") { toast(`This would be flagged: ${verdict.reasoning} — edit and retry`, "warn"); return; }
-    const p = await feedService.createPost({ text: body, media: media.length ? media : undefined, community });
-    peerService.publishPost(p);
-    setText(""); setMedia([]);
-    toast(community ? "Posted to the group — it's permanent now ✦" : "Posted & signed — it's out there forever ✦", "success");
+    const toNostr = nostrEnabled && target !== "ledger";
+    const toLedger = target !== "nostr";
+    if (toLedger) {
+      const p = await feedService.createPost({ text: body, media: media.length ? media : undefined, community });
+      peerService.publishPost(p);
+    }
+    if (toNostr && body) {
+      const tags = [...new Set((body.match(/#[a-z0-9_]+/gi) ?? []).map((t) => t.slice(1).toLowerCase()))];
+      nostrService.publishNote(body, tags).catch(() => {});
+    }
+    setText(""); setMedia([]); setTarget("ledger");
+    const where = toLedger && toNostr ? "Ledger + Nostr" : toNostr ? "Nostr" : community ? "the group" : "Ledger";
+    toast(`Posted to ${where} — it's out there forever ✦`, "success");
   }
 
   return (
@@ -94,8 +106,17 @@ export default function Composer({ community }: { community?: string }) {
             <Tooltip title="HTML post / embed (map, game, custom)"><IconButton size="small" onClick={() => setHtmlOpen(true)}><CodeRoundedIcon fontSize="small" /></IconButton></Tooltip>
             <Tooltip title="Companion: draft a fresh post"><IconButton size="small" onClick={async () => { const { posts } = await feedService.generate("trending", { moderation }); setText(companionService.draftPost(posts)); }}><AutoFixHighRoundedIcon fontSize="small" /></IconButton></Tooltip>
             <Box sx={{ flex: 1, minWidth: 8 }} />
-            <Chip size="small" variant="outlined" label="local-only until posted" sx={{ opacity: 0.6, display: { xs: "none", sm: "inline-flex" } }} />
-            <Button variant="contained" onClick={post} disabled={!text.trim() && !media.length} sx={{ ml: "auto" }}>Post</Button>
+            {nostrEnabled && (
+              <Tooltip title="Where this post goes">
+                <Select size="small" value={target} onChange={(e) => setTarget(e.target.value as "ledger" | "both" | "nostr")}
+                  sx={{ height: 32, fontSize: 13, "& .MuiSelect-select": { py: 0.4 } }}>
+                  <MenuItem value="ledger">Ledger only</MenuItem>
+                  <MenuItem value="both">Ledger + Nostr</MenuItem>
+                  <MenuItem value="nostr">Nostr only</MenuItem>
+                </Select>
+              </Tooltip>
+            )}
+            <Button variant="contained" onClick={post} disabled={(!text.trim() && !media.length) || (target === "nostr" && !text.trim())} sx={{ ml: 1 }}>Post</Button>
           </Stack>
         </Box>
       </Stack>

@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Box, Typography, Stack, Chip } from "@mui/material";
+import { Box, Typography, Stack, Chip, ToggleButtonGroup, ToggleButton } from "@mui/material";
+import PublicRoundedIcon from "@mui/icons-material/PublicRounded";
+import BubbleChartRoundedIcon from "@mui/icons-material/BubbleChartRounded";
 import { storage } from "@/services/storage";
 import { presenceService } from "@/services/presenceService";
 import { identityService } from "@/services/identityService";
 import { bus } from "@/lib/events";
+import WorldMap from "./WorldMap";
 
 // ============================================================
 //  NetworkView — "just to flex": an anonymous, live data-viz of
@@ -97,9 +100,11 @@ export default function NetworkView() {
   const graphRef = useRef<Graph | null>(null);
   const mouse = useRef({ x: 0, y: 0, tx: 0, ty: 0 });
   const [stats, setStats] = useState({ nodes: 0, online: 0, edges: 0, posts: 0 });
+  const [mode, setMode] = useState<"map" | "galaxy">("map");
 
   // (re)build the graph from local data; debounced on feed/presence changes.
   useEffect(() => {
+    if (mode !== "galaxy") return;
     let alive = true;
     const ambientN = Math.max(500, Math.min(1400, Math.floor((window.innerWidth * window.innerHeight) / 1700)));
     const rebuild = () => buildGraph(ambientN).then((g) => { if (alive) { graphRef.current = g; setStats(g.stats); } });
@@ -110,10 +115,11 @@ export default function NetworkView() {
     const offPres = bus.on("presence:update", debounced);
     const offConn = bus.on("peer:connected", debounced);
     return () => { alive = false; clearTimeout(t); offFeed(); offPres(); offConn(); };
-  }, []);
+  }, [mode]);
 
   // canvas render loop
   useEffect(() => {
+    if (mode !== "galaxy") return;
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext("2d", { alpha: false })!;
     let raf = 0, W = 0, H = 0, dpr = 1;
@@ -229,37 +235,52 @@ export default function NetworkView() {
     raf = requestAnimationFrame(draw);
 
     return () => { cancelAnimationFrame(raf); ro.disconnect(); canvas.removeEventListener("mousemove", onMove); };
-  }, []);
+  }, [mode]);
 
   return (
     <Box sx={{ position: "relative", mt: { xs: -1.5, md: -3 }, mx: { xs: -1.5, md: -3 }, mb: -12, height: { xs: "calc(100vh - 66px)", md: "calc(100vh - 98px)" }, overflow: "hidden", bgcolor: "#6aa9e4" }}>
-      <Box component="canvas" ref={canvasRef} sx={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }} />
+      {mode === "map" ? (
+        <WorldMap />
+      ) : (
+        <>
+          <Box component="canvas" ref={canvasRef} sx={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }} />
 
-      {/* HUD overlay — Luna ink on the bright sky */}
-      <Box sx={{ position: "absolute", top: 18, left: 18, right: 18, pointerEvents: "none", color: "#0c2c57" }}>
-        <Typography sx={{ fontWeight: 900, fontSize: { xs: 22, md: 28 }, letterSpacing: 0.5, textShadow: "0 1px 3px rgba(255,255,255,0.7)" }}>The Network</Typography>
-        <Typography variant="body2" sx={{ opacity: 0.85, maxWidth: 460, textShadow: "0 1px 4px rgba(255,255,255,0.7)" }}>
-          Every node this device can see — anonymous. No names, just the shape of the swarm and the threads between people.
-        </Typography>
-        <Stack direction="row" spacing={1} sx={{ mt: 1.5, flexWrap: "wrap", gap: 1 }}>
-          {[
-            ["Nodes", stats.nodes],
-            ["Online now", stats.online],
-            ["Connections", stats.edges],
-            ["Posts seen", stats.posts],
-          ].map(([label, val]) => (
-            <Chip key={label as string} size="small" label={`${val} · ${label}`}
-              sx={{ bgcolor: "rgba(255,255,255,0.85)", color: "#1668e0", border: "1px solid rgba(58,155,240,0.4)", fontWeight: 700, backdropFilter: "blur(4px)" }} />
-          ))}
-        </Stack>
-      </Box>
+          {/* HUD overlay — Luna ink on the bright sky */}
+          <Box sx={{ position: "absolute", top: 18, left: 18, right: 18, pointerEvents: "none", color: "#0c2c57" }}>
+            <Typography sx={{ fontWeight: 900, fontSize: { xs: 22, md: 28 }, letterSpacing: 0.5, textShadow: "0 1px 3px rgba(255,255,255,0.7)" }}>The Network</Typography>
+            <Typography variant="body2" sx={{ opacity: 0.85, maxWidth: 460, textShadow: "0 1px 4px rgba(255,255,255,0.7)" }}>
+              Every node this device can see — anonymous. No names, just the shape of the swarm and the threads between people.
+            </Typography>
+            <Stack direction="row" spacing={1} sx={{ mt: 1.5, flexWrap: "wrap", gap: 1 }}>
+              {[
+                ["Nodes", stats.nodes],
+                ["Online now", stats.online],
+                ["Connections", stats.edges],
+                ["Posts seen", stats.posts],
+              ].map(([label, val]) => (
+                <Chip key={label as string} size="small" label={`${val} · ${label}`}
+                  sx={{ bgcolor: "rgba(255,255,255,0.85)", color: "#1668e0", border: "1px solid rgba(58,155,240,0.4)", fontWeight: 700, backdropFilter: "blur(4px)" }} />
+              ))}
+            </Stack>
+          </Box>
 
-      {/* legend */}
-      <Stack direction="row" spacing={2} sx={{ position: "absolute", bottom: 88, left: 18, pointerEvents: "none", color: "#0c2c57" }}>
-        <Legend color="#0a55cf" label="you" />
-        <Legend color="#1668e0" label="online" />
-        <Legend color="rgba(16,90,207,0.5)" label="seen" />
-      </Stack>
+          {/* legend */}
+          <Stack direction="row" spacing={2} sx={{ position: "absolute", bottom: 88, left: 18, pointerEvents: "none", color: "#0c2c57" }}>
+            <Legend color="#0a55cf" label="you" />
+            <Legend color="#1668e0" label="online" />
+            <Legend color="rgba(16,90,207,0.5)" label="seen" />
+          </Stack>
+        </>
+      )}
+
+      {/* Galaxy / Map toggle */}
+      <ToggleButtonGroup
+        exclusive size="small" value={mode} onChange={(_, v) => v && setMode(v)}
+        sx={{ position: "absolute", top: 16, right: 16, bgcolor: "rgba(255,255,255,0.85)", borderRadius: 2, backdropFilter: "blur(4px)", boxShadow: "0 2px 10px rgba(0,0,0,0.18)", "& .MuiToggleButton-root": { border: "none", px: 1.3, py: 0.5, textTransform: "none", fontWeight: 700, color: "#1668e0", "&.Mui-selected": { background: "linear-gradient(135deg,#3f97ff,#1668e0)", color: "#fff" } } }}
+      >
+        <ToggleButton value="map"><PublicRoundedIcon fontSize="small" sx={{ mr: 0.5 }} /> Map</ToggleButton>
+        <ToggleButton value="galaxy"><BubbleChartRoundedIcon fontSize="small" sx={{ mr: 0.5 }} /> Galaxy</ToggleButton>
+      </ToggleButtonGroup>
     </Box>
   );
 }

@@ -7,7 +7,17 @@ import GlassCard from "@/components/common/GlassCard";
 import readme from "../../../README.md?raw";
 
 export default function AboutView() {
-  const html = useMemo(() => marked.parse(readme, { async: false, gfm: true, breaks: false }) as string, []);
+  const html = useMemo(() => {
+    // The README ships GitHub-relative asset paths (e.g. <img src="public/logo.png">),
+    // which render on the repo page but 404 on the deployed site, where assets live
+    // at the app base. Rewrite "public/…" → the base URL so images load here too.
+    // (The README file is left as-is so it still renders correctly on GitHub.)
+    const base = import.meta.env.BASE_URL;
+    const md = readme
+      .replace(/src="\.?\/?public\//g, `src="${base}`)
+      .replace(/\]\(\.?\/?public\//g, `](${base}`);
+    return marked.parse(md, { async: false, gfm: true, breaks: false }) as string;
+  }, []);
   return (
     <Box sx={{ maxWidth: 820, mx: "auto" }}>
       <Typography variant="h5" sx={{ mb: 0.5 }}>About Ledger</Typography>

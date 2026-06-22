@@ -36,6 +36,7 @@ import WhyRecommended from "./WhyRecommended";
 import UserAvatar from "@/components/common/UserAvatar";
 import { relativeTime } from "@/lib/time";
 import { feedService } from "@/services/feedService";
+import { nostrService } from "@/services/nostrService";
 import { peerService } from "@/services/peerService";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "@/store/useStore";
@@ -480,14 +481,28 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
     try {
       const { text, modelLabel } = await companionService.commentOnPost(post);
       await feedService.commentAsAi(post.id, text, modelLabel);
+      // Bridge to Nostr: mirror the original post there (once) and post the AI
+      // comment as a reply. No-op unless Nostr is active.
+      nostrService.bridgeAiComment(post, `${text}\n\n— 🤖 Ledger AI (${modelLabel})`).catch(() => {});
     } catch { /* best-effort */ }
   }
 
-  async function trust(kind: "vouch" | "report" | "mute") {
+  async function trust(kind: "vouch" | "report" | "mute" | "block") {
     setAuthMenu(null);
     await trustService[kind](post.author);
-    toast(kind === "vouch" ? `Vouched for ${post.authorName}` : kind === "mute" ? `Muted ${post.authorName}` : `Reported ${post.authorName}`, kind === "vouch" ? "success" : "info");
+    const msg = kind === "vouch" ? `Vouched for ${post.authorName}`
+      : kind === "mute" ? `Muted ${post.authorName}`
+      : kind === "block" ? `Blocked ${post.authorName} — undo in Settings`
+      : `Reported ${post.authorName}`;
+    toast(msg, kind === "vouch" ? "success" : "info");
     bus.emit("feed:updated", undefined); // re-evaluate the feed with the new trust signal
+  }
+
+  // "Hide this post" — a per-device hide; the post stays hidden from your feed.
+  async function hideThis() {
+    setAuthMenu(null);
+    await feedService.hidePost(post.id);
+    toast("Post hidden — manage hidden posts in Settings", "info");
   }
 
   return (
@@ -502,7 +517,9 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Stack direction="row" alignItems="center" spacing={0.5}>
                 <Typography onClick={visit} sx={{ fontWeight: 700, fontSize: 15, lineHeight: 1.2, cursor: canVisit ? "pointer" : "default", "&:hover": canVisit ? { textDecoration: "underline" } : {} }} noWrap>{post.authorName}</Typography>
-                {post.author === "ai-bot"
+                {post.source === "nostr"
+                  ? <Tooltip title="External Nostr user — bridged into Ledger"><Chip size="small" label="NOSTR" sx={{ height: 15, fontSize: 9, fontWeight: 800, "& .MuiChip-label": { px: 0.6 }, bgcolor: "rgba(138,43,226,0.16)", color: "#7a1fb8" }} /></Tooltip>
+                  : post.author === "ai-bot"
                   ? <Chip size="small" label="AI" sx={{ height: 15, fontSize: 9, fontWeight: 700, "& .MuiChip-label": { px: 0.6 }, bgcolor: "rgba(124,92,255,0.16)", color: "#5a35d0" }} />
                   : post.author === "rss-bot" || post.author === "system"
                   ? <Chip size="small" label="BOT" sx={{ height: 15, fontSize: 9, fontWeight: 700, "& .MuiChip-label": { px: 0.6 }, bgcolor: "rgba(58,123,240,0.14)", color: "#0a55cf" }} />
@@ -624,9 +641,11 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
 
       <Menu open={!!authMenu} anchorEl={authMenu} onClose={() => setAuthMenu(null)}>
         {!!post.text?.trim() && !factCheck && <MenuItem disabled={fcBusy} onClick={() => { setAuthMenu(null); runFactCheck(); }}>🔎 {fcBusy ? "Checking…" : "Fact-check this"}</MenuItem>}
+        <MenuItem onClick={hideThis}>🙈 Hide this post</MenuItem>
         {canVisit && <MenuItem onClick={() => trust("vouch")}>🤝 Vouch for {post.authorName}</MenuItem>}
         {canVisit && <MenuItem onClick={() => trust("report")}>🚩 Report</MenuItem>}
         {canVisit && <MenuItem onClick={() => trust("mute")}>🔇 Mute — hide from your feed</MenuItem>}
+        {canVisit && <MenuItem onClick={() => trust("block")}>🚫 Block {post.authorName}</MenuItem>}
         {canVisit && <MenuItem onClick={() => { setAuthMenu(null); visit(); }}>👤 View profile</MenuItem>}
       </Menu>
 

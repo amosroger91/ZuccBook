@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Box, Stack, Typography, Select, MenuItem, Switch, FormControlLabel, Divider, Button } from "@mui/material";
 import QrCode2RoundedIcon from "@mui/icons-material/QrCode2Rounded";
 import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
@@ -9,8 +9,13 @@ import InstallHelpDialog from "@/components/layout/InstallHelpDialog";
 import { useStore } from "@/store/useStore";
 import { factCheckService } from "@/services/factCheckService";
 import { identityService } from "@/services/identityService";
+import { nostrService } from "@/services/nostrService";
+import { trustService } from "@/services/trustService";
+import { feedService } from "@/services/feedService";
+import { profileService } from "@/services/profileService";
+import { fingerprint } from "@/lib/crypto";
 import type { FeedAlgorithm, ModerationProfile, CompanionPersona, PresenceStatus } from "@/types";
-import { toast } from "@/lib/events";
+import { bus, toast } from "@/lib/events";
 
 const FEED: FeedAlgorithm[] = ["ai-curated", "chronological", "trending", "discovery", "friends", "community"];
 const MOD: ModerationProfile[] = ["discovery", "family-friendly", "academic", "gaming", "unfiltered"];
@@ -22,6 +27,28 @@ export default function SettingsView() {
   const setSettings = useStore((s) => s.setSettings);
   const [deviceLogin, setDeviceLogin] = useState(false);
   const [install, setInstall] = useState(false);
+  const [restricted, setRestricted] = useState(() => trustService.myRestricted());
+  const [hiddenCount, setHiddenCount] = useState(() => feedService.hiddenCount());
+
+  useEffect(() => {
+    const refresh = () => { setRestricted(trustService.myRestricted()); setHiddenCount(feedService.hiddenCount()); };
+    refresh();
+    const a = bus.on("trust:update", refresh);
+    const b = bus.on("feed:updated", refresh);
+    return () => { a(); b(); };
+  }, []);
+
+  async function unrestrict(pk: string, blocked: boolean) {
+    await trustService.clear(pk);
+    setRestricted(trustService.myRestricted());
+    bus.emit("feed:updated", undefined);   // their posts can flow back into your feed
+    toast(blocked ? "Unblocked" : "Unmuted", "success");
+  }
+  async function unhideAll() {
+    await feedService.clearHidden();
+    setHiddenCount(0);
+    toast("Hidden posts restored", "success");
+  }
 
   function row(label: string, hint: string, control: React.ReactNode) {
     return (
@@ -52,6 +79,35 @@ export default function SettingsView() {
         <Divider />
         {row("Censor cuss words", "Mask profanity inline (fuck → f**k) instead of hiding it. Works whether or not the filter above is on.",
           <Switch checked={settings.censorProfanity} onChange={(e) => setSettings({ censorProfanity: e.target.checked })} />)}
+        <Divider />
+        {row("Nostr posts", "Pull notes from the Nostr network (for the topics you follow) into your feed, shown as external 'NOSTR' users you can reply to and react to. Turn off to hide them.",
+          <Switch checked={settings.nostrEnabled !== false} onChange={(e) => { setSettings({ nostrEnabled: e.target.checked }); if (e.target.checked) { nostrService.start().catch(() => {}); toast("Nostr posts on — streaming notes for your topics", "info"); } else { nostrService.stop(); toast("Nostr posts hidden", "info"); } }} />)}
+      </GlassCard>
+
+      <GlassCard sx={{ mb: 2 }}>
+        <Typography variant="overline" color="text.secondary">Blocked &amp; hidden</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 1.5 }}>
+          People you block or mute are hidden from your feed; posts you hide are tucked away. It's all private and stays on this device.
+        </Typography>
+        {restricted.length === 0
+          ? <Typography variant="caption" color="text.secondary">You haven't blocked or muted anyone.</Typography>
+          : <Stack spacing={1}>
+              {restricted.map((r) => {
+                const blocked = r.kind === "block";
+                return (
+                  <Stack key={r.to} direction="row" alignItems="center" spacing={1}>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>{profileService.get(r.to)?.username ?? `id ${fingerprint(r.to)}`}</Typography>
+                      <Typography variant="caption" color="text.secondary">{blocked ? "Blocked" : "Muted"}</Typography>
+                    </Box>
+                    <Button size="small" variant="outlined" onClick={() => unrestrict(r.to, blocked)}>{blocked ? "Unblock" : "Unmute"}</Button>
+                  </Stack>
+                );
+              })}
+            </Stack>}
+        <Divider sx={{ my: 1.5 }} />
+        {row(`Hidden posts (${hiddenCount})`, "Posts you hid with “Hide this post.” Bring them all back.",
+          <Button size="small" variant="outlined" disabled={hiddenCount === 0} onClick={unhideAll}>Unhide all</Button>)}
       </GlassCard>
 
       <GlassCard sx={{ mb: 2 }}>

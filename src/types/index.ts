@@ -108,7 +108,11 @@ export interface Post {
   // recommendation metadata, computed locally
   embedding?: number[];
   // provenance: how this record reached us
-  source: "self" | "peer" | "relay" | "cache";
+  source: "self" | "peer" | "relay" | "cache" | "nostr";
+  // for external Nostr notes: the original event id + author pubkey (hex), so we
+  // can reply/react back to Nostr. author is "nostr:<pubkey>" for these.
+  nostrId?: string;
+  nostrPubkey?: string;
   // detached ECDSA signature over the authored content (see lib/records.ts).
   // Verified at every ingest boundary; a forged post fails and is dropped.
   sig?: string;
@@ -182,6 +186,9 @@ export interface RichPresence {
   status: PresenceStatus;
   activity?: { kind: string; detail: string; since: number }; // "Listening to Jazz FM"
   lastSeen: number;
+  // Approximate, coarsened location for the network world-map (opt-in; GPS if the
+  // user allowed it for the map, otherwise an IP-based guess). ~tens of km only.
+  geo?: { lat: number; lon: number; source: "gps" | "ip" };
 }
 
 export interface ChatMessage {
@@ -296,4 +303,5 @@ export interface AppSettings {
   showFactChecks: boolean;      // surface PolitiFact fact-check cards under RSS posts
   filterNsfw: boolean;          // hide adult images (on-device nsfwjs) & gate explicit posts
   censorProfanity: boolean;     // mask cuss words inline (f**k) instead of hiding the post
+  nostrEnabled: boolean;        // pull Nostr notes into the feed + publish replies/reactions
 }

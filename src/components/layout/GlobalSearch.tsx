@@ -17,7 +17,9 @@ import RadioRoundedIcon from "@mui/icons-material/RadioRounded";
 import GraphicEqRoundedIcon from "@mui/icons-material/GraphicEqRounded";
 import { storage } from "@/services/storage";
 import { communityService } from "@/services/communityService";
+import { nostrService } from "@/services/nostrService";
 import { listenTogetherService, GENRES, flagOf, type Station } from "@/services/listenTogetherService";
+import { useStore } from "@/store/useStore";
 import { bus } from "@/lib/events";
 import { relativeTime } from "@/lib/time";
 import UserAvatar from "@/components/common/UserAvatar";
@@ -40,6 +42,8 @@ export default function GlobalSearch({ compact }: { compact?: boolean }) {
   const [comms, setComms] = useState<Community[]>([]);
   const [stations, setStations] = useState<Station[]>([]);
   const [loadingSt, setLoadingSt] = useState(false);
+  const [loadingNostr, setLoadingNostr] = useState(false);
+  const nostrEnabled = useStore((s) => s.settings.nostrEnabled !== false);
 
   // Load the local datasets each time the palette opens, so results are fresh.
   useEffect(() => {
@@ -63,6 +67,22 @@ export default function GlobalSearch({ compact }: { compact?: boolean }) {
     }, 350);
     return () => { alive = false; clearTimeout(h); };
   }, [q, open]);
+
+  // Search Nostr too (NIP-50 / hashtag / npub) — ingest matches, then reload
+  // posts so the freshly-pulled Nostr notes surface in the "Posts" results.
+  useEffect(() => {
+    const ql2 = q.trim();
+    if (!open || ql2.length < 2 || !nostrEnabled) { setLoadingNostr(false); return; }
+    let alive = true; setLoadingNostr(true);
+    const h = setTimeout(() => {
+      nostrService.search(ql2)
+        .then(() => storage.allPosts())
+        .then((ps) => { if (alive) setPosts(ps); })
+        .catch(() => {})
+        .finally(() => { if (alive) setLoadingNostr(false); });
+    }, 450);
+    return () => { alive = false; clearTimeout(h); };
+  }, [q, open, nostrEnabled]);
 
   function close() { setOpen(false); setQ(""); setStations([]); }
   const goUser = (pk: string) => { close(); nav(`/u/${pk}`); };
@@ -129,11 +149,11 @@ export default function GlobalSearch({ compact }: { compact?: boolean }) {
       >
         <Box sx={{ p: 1.25, borderBottom: "1px solid var(--bl-line)" }}>
           <TextField
-            autoFocus fullWidth size="small" placeholder="Search users, posts, groups, chatrooms, radio…"
+            autoFocus fullWidth size="small" placeholder="Search people, posts, groups, radio + Nostr…"
             value={q} onChange={(e) => setQ(e.target.value)}
             InputProps={{
               startAdornment: <InputAdornment position="start"><SearchRoundedIcon fontSize="small" sx={{ color: "text.disabled" }} /></InputAdornment>,
-              endAdornment: loadingSt ? <InputAdornment position="end"><CircularProgress size={15} /></InputAdornment> : undefined,
+              endAdornment: (loadingSt || loadingNostr) ? <InputAdornment position="end"><CircularProgress size={15} /></InputAdornment> : undefined,
             }}
           />
         </Box>

@@ -110,7 +110,7 @@ export default function FeedView() {
 
   const refresh = useCallback(async () => {
     const cfg = await rssService.config();
-    const { posts, reasons, verdicts } = await feedService.generate(algo, { moderation: settings.moderationProfile, subscribedTopics: cfg.topics, mutedTopics: cfg.mutedTopics, mutedFeeds: cfg.mutedFeeds });
+    const { posts, reasons, verdicts } = await feedService.generate(algo, { moderation: settings.moderationProfile, subscribedTopics: cfg.topics, mutedTopics: cfg.mutedTopics, mutedFeeds: cfg.mutedFeeds, includeNostr: settings.nostrEnabled !== false });
     setPosts(posts);
     setReasons(reasons);
     setVerdicts(verdicts);
@@ -119,7 +119,7 @@ export default function FeedView() {
     for (const p of await storage.allPosts()) if (p.replyTo) { const a = map.get(p.replyTo) ?? []; a.push(p); map.set(p.replyTo, a); }
     for (const a of map.values()) a.sort((x, y) => x.createdAt - y.createdAt);
     setReplies(map);
-  }, [algo, settings.moderationProfile]);
+  }, [algo, settings.moderationProfile, settings.nostrEnabled]);
 
   useEffect(() => { refresh(); const off = bus.on("feed:updated", refresh); return off; }, [refresh]);
   // Scroll to & highlight a post when an alert deep-links to it.

@@ -47,8 +47,9 @@ class ModerationService {
     const prof = PROFILES[ctx.profile];
 
     // ----- viewer web-of-trust (overrides everything) -----
-    if (ctx.authorPk && trustService.isMuted(ctx.authorPk)) {
-      return { action: "hide", allowed: false, confidence: 1, reasoning: "You muted this person.", signals: [{ label: "You muted them", weight: 1 }], labels: ["muted"] };
+    if (ctx.authorPk && (trustService.isBlocked(ctx.authorPk) || trustService.isMuted(ctx.authorPk))) {
+      const blocked = trustService.isBlocked(ctx.authorPk);
+      return { action: "hide", allowed: false, confidence: 1, reasoning: blocked ? "You blocked this person." : "You muted this person.", signals: [{ label: blocked ? "You blocked them" : "You muted them", weight: 1 }], labels: [blocked ? "blocked" : "muted"] };
     }
     const trust = ctx.authorPk ? trustService.score(ctx.authorPk, ctx.community) : 0;
 

@@ -155,8 +155,10 @@ export default function FloatingDocks() {
   const [intro, setIntro] = useState(false);
   const [pending, setPending] = useState<string | null>(null); // a post asked the companion to comment
 
-  // "Chat with companion about this post" → open the dock and send the prompt.
+  // "Ask AI about this post" → open the dock and send the prompt.
   useEffect(() => bus.on("companion:prompt", ({ text }) => { setIntro(false); setChatOpen(false); setCompanionOpen(true); setPending(text); }), []);
+  // Generic "Ask AI" → just open the mini dock (no prompt), never full-screen.
+  useEffect(() => bus.on("companion:open", () => { setIntro(true); setChatOpen(false); setCompanionOpen(true); }), []);
 
   // Auto-greet once per session when the on-device AI is ready (or shortly after).
   useEffect(() => {
@@ -189,7 +191,7 @@ export default function FloatingDocks() {
             <Badge color="error" variant="dot" invisible={!chatActive || chatOpen}><ForumRoundedIcon sx={{ color: "#fff" }} /></Badge>
           </Box>
         </Tooltip>
-        <Tooltip title={companionOpen ? "Hide Companion" : "Chat with your Companion"} placement="top">
+        <Tooltip title={companionOpen ? "Hide AI" : "Ask AI"} placement="top">
           <Box onClick={toggleCompanion} sx={bubbleSx("linear-gradient(135deg,#3f97ff,#1668e0)")}>
             <AutoAwesomeRoundedIcon sx={{ color: "#fff" }} />
           </Box>

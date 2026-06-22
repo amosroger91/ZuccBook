@@ -165,4 +165,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   showFactChecks: true,
   filterNsfw: true,
   censorProfanity: false,
+  nostrEnabled: true,
 };

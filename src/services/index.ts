@@ -10,6 +10,7 @@ import { feedService } from "./feedService";
 import { companionService } from "./companionService";
 import { communityService } from "./communityService";
 import { presenceService } from "./presenceService";
+import { geoService } from "./geoService";
 import { peerService } from "./peerService";
 import { rssService } from "./rssService";
 import { gunService } from "./gunService";
@@ -19,6 +20,7 @@ import { bestModelForHardware, isWebGPU } from "./companionService";
 import { audioPlayerService } from "./audioPlayerService";
 import { factCheckService } from "./factCheckService";
 import { changelogService } from "./changelogService";
+import { nostrService } from "./nostrService";
 import { alertsService } from "./alertsService";
 import type { AppSettings } from "@/types";
 
@@ -59,6 +61,7 @@ export async function boot(): Promise<BootResult> {
 
   if (me) {
     presenceService.setStatus(settings.presenceStatus);
+    geoService.init().catch(() => {}); // coarse location for the network map (cache → IP fallback)
     await communityService.seedDefaults();
     gunService.start();   // durable cross-user persistence + sync (posts, swarm, profiles)
     peerService.start();
@@ -72,6 +75,7 @@ export async function boot(): Promise<BootResult> {
     rssService.seedDefaults().catch(() => {});
     changelogService.refresh().catch(() => {}); // repo commits → timeline activity
     if (settings.showFactChecks) factCheckService.refresh().catch(() => {}); // PolitiFact index
+    if (settings.nostrEnabled !== false) nostrService.start().catch(() => {}); // stream Nostr notes for your topics
   }
   return { onboarded: !!me, settings };
 }
@@ -83,6 +87,7 @@ export async function onOnboarded() {
   peerService.start();
   rssService.seedDefaults().catch(() => {}); // relay refreshes feeds for everyone; no client-side fetch
   changelogService.refresh().catch(() => {});
+  nostrService.start().catch(() => {}); // stream Nostr notes (on by default for new accounts)
 }
 
 // Earlier builds seeded sample posts; strip them so the feed only ever shows

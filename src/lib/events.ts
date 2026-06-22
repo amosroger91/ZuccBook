@@ -45,6 +45,7 @@ export interface LedgerEvents {
   "media:play": { id: string };         // some media started — others should pause
   "companion:thinking": boolean;
   "companion:prompt": { text: string };   // open the companion dock and ask this
+  "companion:open": void;                  // just open the companion (AI) mini dock
   "rss:refreshing": boolean;
   "rss:progress": { done: number; total: number; posted: number };  // feed refresh progress
   "factcheck:ready": void;       // PolitiFact index loaded — re-check posts

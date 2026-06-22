@@ -31,6 +31,7 @@ import GlobalFeedVideo from "@/components/layout/GlobalFeedVideo";
 import GlobalSpotify from "@/components/layout/GlobalSpotify";
 import FloatingDocks from "@/components/layout/FloatingDocks";
 import AiSplash from "@/components/layout/AiSplash";
+import GeoConsent from "@/components/layout/GeoConsent";
 
 export default function App() {
   const { ready, onboarded, setReady, setPresence, setOnlineCount } = useStore();
@@ -89,6 +90,7 @@ export default function App() {
       {ready && onboarded && <MiniPlayer />}
       {ready && onboarded && <AudioMiniPlayer />}
       {ready && onboarded && <FloatingDocks />}
+      {ready && onboarded && <GeoConsent />}
       <Snackbar
         open={!!notify}
         autoHideDuration={4000}

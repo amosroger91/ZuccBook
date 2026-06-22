@@ -15,6 +15,7 @@ import { identityService } from "@/services/identityService";
 import { reputationService, BADGES } from "@/services/reputationService";
 import { communityService } from "@/services/communityService";
 import { profileService } from "@/services/profileService";
+import { nostrService } from "@/services/nostrService";
 import { relayService } from "@/services/relayService";
 import { useStore } from "@/store/useStore";
 import UserAvatar from "@/components/common/UserAvatar";
@@ -198,7 +199,38 @@ export default function ProfileView() {
   const me = useStore((s) => s.me);
   const refreshMe = useStore((s) => s.refreshMe);
   if (!routePk || routePk === me?.publicKey) return <OwnProfile me={me} refreshMe={refreshMe} />;
+  if (routePk.startsWith("nostr:")) return <NostrProfile pk={routePk} />;
   return <ViewProfile pk={routePk} />;
+}
+
+/* ============================ external Nostr user ============================ */
+function NostrProfile({ pk }: { pk: string }) {
+  const [profile, setProfile] = useState<Profile | null>(null);
+  useEffect(() => {
+    nostrService.profile(pk).then(setProfile);
+    const off = bus.on("profile:update", (p) => { if (p.pk === pk) setProfile(p); });
+    return off;
+  }, [pk]);
+  const npub = nostrService.npubFor(pk);
+  return (
+    <>
+      <Box sx={{ maxWidth: 760, mx: "auto", mb: 1.5 }}>
+        <GlassCard sx={{ background: "rgba(138,43,226,0.08)", borderColor: "rgba(138,43,226,0.28)" }}>
+          <Stack direction="row" spacing={1.25} alignItems="flex-start">
+            <Box sx={{ fontSize: 22, lineHeight: 1 }}>🟣</Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography sx={{ fontWeight: 800 }}>External Nostr user</Typography>
+              <Typography variant="body2" color="text.secondary">
+                They still need to sign up for Ledger — this profile is mirrored from the Nostr network. You can still reply &amp; react, and it reaches them on Nostr.
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75, fontFamily: "monospace", wordBreak: "break-all" }}>{npub}</Typography>
+            </Box>
+          </Stack>
+        </GlassCard>
+      </Box>
+      {profile && <ProfileDisplay profile={profile} />}
+    </>
+  );
 }
 
 /* ============================ viewing someone else ============================ */

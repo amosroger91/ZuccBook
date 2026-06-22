@@ -12,6 +12,7 @@ class PresenceService {
   private roster = new Map<string, RichPresence>();
   private status: PresenceStatus = "online";
   private activity?: RichPresence["activity"];
+  private geo?: RichPresence["geo"];
 
   setStatus(s: PresenceStatus) { this.status = s; this.announceSelf(); }
   setActivity(kind: string, detail: string) {
@@ -19,6 +20,9 @@ class PresenceService {
     this.announceSelf();
   }
   clearActivity() { this.activity = undefined; this.announceSelf(); }
+  /** Set my coarse location for the network world-map and re-broadcast presence. */
+  setGeo(geo: RichPresence["geo"]) { this.geo = geo; this.announceSelf(); }
+  myGeo() { return this.geo; }
 
   self(): RichPresence {
     const me = identityService.current;
@@ -29,6 +33,7 @@ class PresenceService {
       status: this.status,
       activity: this.activity,
       lastSeen: Date.now(),
+      geo: this.geo,
     };
   }
 

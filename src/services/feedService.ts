@@ -25,11 +25,22 @@ const POSITIVE_REACTIONS = new Set(["⭐", "🔥", "🚀", "💜", "😂", "❤�
 
 class FeedService {
   private profile = new InterestProfile();
+  // Per-device "hide this post" set — ids you've hidden, kept out of your feed.
+  private hidden = new Set<string>();
 
   async init() {
     const saved = await storage.kvGet<{ centroid: number[]; count: number }>("interest");
     this.profile = InterestProfile.from(saved);
+    this.hidden = new Set((await storage.kvGet<string[]>("hiddenPosts")) ?? []);
   }
+
+  /* ---------- per-device hidden posts ---------- */
+  isHidden(id: string): boolean { return this.hidden.has(id); }
+  hiddenCount(): number { return this.hidden.size; }
+  private async persistHidden() { await storage.kvSet("hiddenPosts", [...this.hidden]); }
+  async hidePost(id: string) { this.hidden.add(id); await this.persistHidden(); bus.emit("feed:updated", undefined); }
+  async unhidePost(id: string) { this.hidden.delete(id); await this.persistHidden(); bus.emit("feed:updated", undefined); }
+  async clearHidden() { this.hidden.clear(); await this.persistHidden(); bus.emit("feed:updated", undefined); }
 
   /* ---------- authoring ---------- */
   async createPost(input: {
@@ -68,6 +79,12 @@ class FeedService {
     bus.emit("feed:post", post);
     bus.emit("feed:updated", undefined);
     bus.emit("post:publish", post);   // persist to the durable graph (Gun)
+    // If this is a reply to an external Nostr note, publish the reply to Nostr too.
+    if (input.replyTo) {
+      storage.getPost(input.replyTo).then((parent) => {
+        if (parent?.source === "nostr") import("./nostrService").then((m) => m.nostrService.replyToNote(parent, text)).catch(() => {});
+      }).catch(() => {});
+    }
     return post;
   }
 
@@ -196,12 +213,18 @@ class FeedService {
     bus.emit("feed:updated", undefined);
   }
 
-  /** Local reaction → apply, broadcast live (peer relay), and persist (Gun). */
+  /** Local reaction → apply, broadcast live (peer relay), and persist (Gun).
+   *  Reactions on a Nostr note are also published back to Nostr (kind 7). */
   async react(postId: string, emoji: string) {
     await this.applyReaction(postId, emoji, identityService.pk);
     bus.emit("feed:react-out", { postId, emoji });
     const updated = await storage.getPost(postId);
-    if (updated) bus.emit("post:publish", updated);
+    if (!updated) return;
+    if (updated.source === "nostr") {
+      import("./nostrService").then((m) => m.nostrService.reactToNote(updated, emoji)).catch(() => {});
+    } else {
+      bus.emit("post:publish", updated);   // Ledger posts persist/sync over Gun (Nostr ones don't)
+    }
   }
 
   async repliesFor(postId: string): Promise<Post[]> {
@@ -217,9 +240,10 @@ class FeedService {
   /* ---------- feed generation ---------- */
   async generate(
     algorithm: FeedAlgorithm,
-    opts: { moderation: ModerationProfile; friends?: string[]; community?: string; subscribedTopics?: string[]; mutedTopics?: string[]; mutedFeeds?: string[]; values?: CommunityValues } = { moderation: "discovery" },
+    opts: { moderation: ModerationProfile; friends?: string[]; community?: string; subscribedTopics?: string[]; mutedTopics?: string[]; mutedFeeds?: string[]; includeNostr?: boolean; values?: CommunityValues } = { moderation: "discovery" },
   ): Promise<{ posts: Post[]; reasons: Map<string, RecommendationReason>; verdicts: Map<string, ModerationVerdict> }> {
-    let posts = (await storage.allPosts()).filter((p) => !p.replyTo); // top-level only
+    let posts = (await storage.allPosts()).filter((p) => !p.replyTo && !this.hidden.has(p.id)); // top-level, minus posts you hid
+    if (opts.includeNostr === false) posts = posts.filter((p) => p.source !== "nostr");   // Nostr unsubscribed
     const meId = identityService.pk;
 
     // Dedup RSS-Bot posts that point to the same link — the same story often
@@ -247,7 +271,7 @@ class FeedService {
         authorPk: bot ? undefined : p.author,
         authorName: p.authorName,
         authorReputation: profileService.get(p.author)?.reputation ?? (p.author === meId ? 999 : 0),
-        knownAuthor: bot || p.author === meId || !!profileService.get(p.author),
+        knownAuthor: bot || p.author === meId || !!profileService.get(p.author) || p.author.startsWith("nostr:"),
         community: p.community,
         values: opts.values,
       });

@@ -69,6 +69,23 @@ class TrustService {
     return best?.kind ?? null;
   }
   isMuted(to: string): boolean { return this.myRelation(to) === "mute"; }
+  isBlocked(to: string): boolean { return this.myRelation(to) === "block"; }
+
+  /** People I've currently blocked or muted — for management in Settings. */
+  myRestricted(): { to: string; kind: TrustKind; at: number }[] {
+    const me = identityService.pk;
+    const tos = new Set<string>();
+    for (const e of edges.values()) if (e.from === me) tos.add(e.to);
+    const out: { to: string; kind: TrustKind; at: number }[] = [];
+    for (const to of tos) {
+      const rel = this.myRelation(to);
+      if (rel !== "block" && rel !== "mute") continue;
+      let at = 0;
+      for (const e of edges.values()) if (e.from === me && e.to === to && e.kind === rel) at = Math.max(at, e.at);
+      out.push({ to, kind: rel, at });
+    }
+    return out.sort((a, b) => b.at - a.at);
+  }
 
   /** People I've vouched for (for the 1-hop walk). */
   private myVouches(): string[] {
