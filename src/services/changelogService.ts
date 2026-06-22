@@ -11,10 +11,9 @@ import { feedService } from "./feedService";
 import { embed } from "@/lib/embeddings";
 import { bus } from "@/lib/events";
 
-// Real GitHub repo path — NOT brand text. The changelog feed fetches commits
-// from here via the GitHub API, so this must stay the actual repo slug even
-// though the product is now "Ledger". Update only if the repo is renamed.
-const REPO = "amosroger91/ZuccBook";
+// Real GitHub repo path — the changelog feed fetches commits from here via the
+// GitHub API. Must stay the actual repo slug; update if the repo is renamed.
+const REPO = "amosroger91/Ledger";
 const THROTTLE_MS = 30 * 60 * 1000;
 
 class ChangelogService {

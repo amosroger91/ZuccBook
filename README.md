@@ -38,7 +38,7 @@ sell you, shadow‑ban you, or flip a switch to take it away, because there is n
 "them": just your device, talking directly to other people's devices, over free
 and open code. You are not the product. You are the owner.
 
-## 🔗 Live app: https://amosroger91.github.io/ZuccBook/
+## 🔗 Live app: https://amosroger91.github.io/Ledger/
 
 > Open it in **two browser windows** to watch presence, chatrooms, and the post
 > relay connect peer-to-peer with no server in between.
