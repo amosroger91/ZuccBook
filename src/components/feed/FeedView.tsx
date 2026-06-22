@@ -88,7 +88,7 @@ export default function FeedView() {
   // (media, embeds, link-preview fetches), so rendering hundreds at once is what
   // makes the first paint and scrolling slow. This is purely a render-time
   // window — no extra network; we're just deferring DOM/work, not data.
-  const PAGE = 8;
+  const PAGE = 25;   // render a substantial first window (content-visibility keeps off-screen cards cheap) so the feed is scrollable even before the load-more observer kicks in
   const [visibleCount, setVisibleCount] = useState(PAGE);
   // Reset the window when the feed's identity changes (algorithm/filter/search/group).
   useEffect(() => { setVisibleCount(PAGE); }, [algo, filter, community]);
@@ -141,7 +141,10 @@ export default function FeedView() {
     const prev = postsRef.current;
     const el = document.getElementById("app-scroll");
     const atTop = !el || el.scrollTop < 40;
-    if (prev.length === 0 || atTop) {
+    // Fill freely while the feed is empty/sparse (a fresh account loading from the
+    // mesh) or while you're at the top; only FREEZE + hold behind the pill once the
+    // feed is substantial AND you've scrolled down into it.
+    if (prev.length < 25 || atTop) {
       setPosts(res.posts); pendingRef.current = null; setNewCount(0);
     } else {
       const fresh = new Map(res.posts.map((p) => [p.id, p]));

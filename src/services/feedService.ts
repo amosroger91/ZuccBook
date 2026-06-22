@@ -400,6 +400,10 @@ function balanceSources(posts: Post[]): Post[] {
   const n = Math.min(nostr.length, ledger.length);
   const out: Post[] = [];
   for (let i = 0; i < n; i++) { out.push(ledger[i], nostr[i]); }
+  // Keep the surplus of the larger source instead of DROPPING it — otherwise a feed
+  // that's mostly one source (a fresh node's RSS mesh with only a handful of Nostr
+  // notes) gets capped to 2×the smaller source and looks nearly empty.
+  out.push(...ledger.slice(n), ...nostr.slice(n));
   return out;
 }
 
