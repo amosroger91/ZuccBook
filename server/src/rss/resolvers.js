@@ -19,7 +19,13 @@ export async function resolveYouTube(ref) {
   const ck = "yt:" + ref;
   if (cache.has(ck)) return cache.get(ck);
   const page = ref.startsWith("http") ? ref : `https://www.youtube.com/${ref.startsWith("@") ? ref : "@" + ref}`;
-  const html = await fetchText(page, { timeoutMs: TO() });
+  // From a datacenter IP YouTube serves a consent interstitial instead of the
+  // channel page (no channelId in the HTML). A consent cookie skips it so the
+  // regex below finds the UC… id; the videos.xml feed itself fetches fine.
+  const html = await fetchText(page, {
+    timeoutMs: TO(),
+    headers: { cookie: "CONSENT=YES+1; SOCS=CAI", "accept-language": "en-US,en;q=0.9" },
+  });
   if (!html) throw new Error("youtube page unreachable");
   const m =
     html.match(/"channelId":"(UC[\w-]{22})"/) ||

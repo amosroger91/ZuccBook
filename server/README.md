@@ -87,12 +87,27 @@ curl "localhost:8787/api/timeline?limit=5"
 git pull --ff-only
 docker build -t ledger-server ./server
 docker rm -f ledger-server
-docker run -d --name ledger-server --restart unless-stopped \
-  -p 127.0.0.1:8787:8787 -e GUN_DATA_DIR=/data -v ledger-data:/data ledger-server
+docker network create ledger-net 2>/dev/null || true
+docker run -d --name ledger-server --restart unless-stopped --network ledger-net \
+  -p 127.0.0.1:8787:8787 -e GUN_DATA_DIR=/data -v ledger-data:/data \
+  -e RSSHUB_BASE=http://rsshub:1200 ledger-server
 ```
 
 Apache vhost (`ledger.wellspringstudiollc.com`) reverse-proxies to `127.0.0.1:8787`
 with a WebSocket upgrade for `/gun`; cert via `certbot --apache`.
+
+**Self-hosted RSSHub** (the public `rsshub.app` is now restricted to "testing only", so
+the app's "add any RSSHub route" option needs a real instance). Runs as a sibling
+container on the same network; the relay reaches it at `http://rsshub:1200`:
+
+```bash
+docker run -d --name rsshub --restart unless-stopped --network ledger-net \
+  -e NODE_ENV=production -e CACHE_TYPE=memory diygod/rsshub:latest
+```
+
+It powers Twitch/Instagram/X/etc. routes. **Not** YouTube (needs an API key on RSSHub —
+the relay fetches `videos.xml` directly instead) or Reddit (Reddit blocks datacenter
+IPs, so neither direct nor RSSHub-on-the-same-box can pull it).
 
 **Render (free):** New ▸ Blueprint ▸ this repo (reads `render.yaml`, `rootDir: server`).
 
@@ -117,7 +132,7 @@ All env vars optional — see [`.env.example`](./.env.example).
 | `RSS_CONCURRENCY` | `6` | Feeds fetched in parallel per cycle. |
 | `RSS_MAX_ITEMS` | `1500` | Ring buffer of newest items kept in memory. |
 | `LEDGER_PUBLISH_RSS` | `true` | Publish aggregated RSS into the global Gun feed. |
-| `RSSHUB_BASE` | `https://rsshub.app` | For sources with no native RSS (Twitch, etc.). |
+| `RSSHUB_BASE` | `https://rsshub.app` | Base for RSSHub routes. Public rsshub.app is restricted — point at a **self-hosted** instance (`http://rsshub:1200`). |
 | `LEDGER_MODE` | `relay` | `node` = a desktop contributor (publishes + signed heartbeats). |
 
 ## Honest limitations
@@ -125,8 +140,10 @@ All env vars optional — see [`.env.example`](./.env.example).
 - **Signatures:** human posts/profiles/listings are signed and verified on the frontend
   (`src/lib/records.ts`); bot authors (`rss-bot`/`system`) are exempt, so relay RSS is
   accepted. The relay itself doesn't re-verify what it persists — like any Gun peer.
-- **Server-side fetch gaps:** a few sources (some YouTube/Reddit) occasionally block a
-  datacenter IP; the proxy fallback covers most, and a user **Refresh now** fills the rest.
+- **Server-side fetch gaps:** YouTube needs a consent cookie (handled) — its `videos.xml`
+  then fetches fine. **Reddit blocks datacenter IPs entirely** (direct *and* via RSSHub on
+  the same box), so subreddits fill only via a user **Refresh now**. RSSHub routes use the
+  **self-hosted** instance (public `rsshub.app` is restricted to testing).
 - **In-memory read index:** the timeline is served from RAM and rebuilt from the Gun graph
   on boot; sized for a community swarm, not millions of posts.
 - **Render free tier** sleeps after ~15 min idle with an ephemeral disk; the live VPS
