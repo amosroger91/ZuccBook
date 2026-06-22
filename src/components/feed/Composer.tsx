@@ -63,8 +63,8 @@ export default function Composer({ community }: { community?: string }) {
   }
 
   return (
-    <GlassCard sx={{ mb: 2 }}>
-      <Stack direction="row" spacing={1.5}>
+    <GlassCard sx={{ mb: 2, p: { xs: 1.5, sm: 2 } }}>
+      <Stack direction="row" spacing={{ xs: 1, sm: 1.5 }}>
         <UserAvatar pk={me?.publicKey ?? ""} name={me?.username ?? "?"} avatar={me?.avatar} />
         <Box sx={{ flex: 1 }}>
           <TextField
@@ -83,18 +83,18 @@ export default function Composer({ community }: { community?: string }) {
               ))}
             </Stack>
           )}
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 1 }}>
+          <Stack direction="row" alignItems="center" useFlexGap flexWrap="wrap" spacing={0.5} sx={{ mt: 1, rowGap: 0.5 }}>
             <Tooltip title="Attach image"><IconButton size="small" onClick={() => fileRef.current?.click()}><ImageRoundedIcon fontSize="small" /></IconButton></Tooltip>
             <Tooltip title="Add a GIF"><IconButton size="small" onClick={() => setGifOpen(true)}><GifBoxRoundedIcon fontSize="small" /></IconButton></Tooltip>
             <Tooltip title="Share an mp3"><IconButton size="small" onClick={() => audioRef.current?.click()}><AudiotrackRoundedIcon fontSize="small" /></IconButton></Tooltip>
             <Tooltip title="HTML post / embed (map, game, custom)"><IconButton size="small" onClick={() => setHtmlOpen(true)}><CodeRoundedIcon fontSize="small" /></IconButton></Tooltip>
             <Tooltip title="Companion: draft a fresh post"><IconButton size="small" onClick={async () => { const { posts } = await feedService.generate("trending", { moderation }); setText(companionService.draftPost(posts)); }}><AutoFixHighRoundedIcon fontSize="small" /></IconButton></Tooltip>
-            <Box sx={{ flex: 1 }} />
+            <Box sx={{ flex: 1, minWidth: 8 }} />
             <Chip size="small" variant="outlined" label="local-only until posted" sx={{ opacity: 0.6, display: { xs: "none", sm: "inline-flex" } }} />
-            <Button variant="contained" onClick={post} disabled={!text.trim() && !media.length}>Post</Button>
+            <Button variant="contained" onClick={post} disabled={!text.trim() && !media.length} sx={{ ml: "auto" }}>Post</Button>
           </Stack>
-          <Typography variant="caption" color="text.secondary" sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.75 }}>
-            <span>🔗</span> Posting is <b>permanent</b> — once it's out, it spreads across the network and can't be unsent or deleted. Post like it's forever, because it is.
+          <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1, mb: 0, lineHeight: 1.45 }}>
+            🔗 Posting is <b>permanent</b> — once it's out, it spreads across the network and can't be unsent or deleted. Post like it's forever, because it is.
           </Typography>
         </Box>
       </Stack>
