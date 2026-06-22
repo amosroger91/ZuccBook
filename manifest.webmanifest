@@ -1,0 +1,19 @@
+{
+  "name": "ZuccBook — the local-first social universe",
+  "short_name": "ZuccBook",
+  "description": "A decentralized, local-first social platform that runs entirely in your browser. You own your identity, your feed is generated on-device, and communication is peer-to-peer.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#6aa9e4",
+  "theme_color": "#1668e0",
+  "categories": ["social"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
