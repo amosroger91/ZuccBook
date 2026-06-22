@@ -98,8 +98,8 @@ export default function Composer({ community }: { community?: string }) {
             <Button variant="contained" onClick={post} disabled={!text.trim() && !media.length} sx={{ ml: "auto" }}>Post</Button>
           </Stack>
           {showPermanentWarning && (
-            <Box role="status" aria-live="polite" sx={{ mt: 0, mb: 0, display: 'flex', alignItems: 'center', gap: 1, p: 0, borderRadius: 0, bgcolor: 'rgba(255,243,205,0.98)', borderTop: '1px solid rgba(255,235,59,0.32)' }}>
-              <Box sx={{ flex: 1, px: 1, py: 0.6 }}>
+            <Box role="status" aria-live="polite" sx={{ mt: 0, mb: 0, display: 'flex', alignItems: 'center', gap: 1, p: 0, bgcolor: 'rgba(255,243,205,0.98)', borderTop: '1px solid rgba(255,235,59,0.32)', mx: { xs: -1.5, sm: -2 }, px: { xs: 1.5, sm: 2 }, borderBottomLeftRadius: 1, borderBottomRightRadius: 1, borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
+              <Box sx={{ flex: 1, py: 0.6 }}>
                 <Typography variant="caption" color="text.primary" component="p" sx={{ lineHeight: 1.2 }}>
                   🔗 Posting is <b>permanent</b> — once it's out, it spreads across the network and can't be unsent or deleted. Post like it's forever, because it is.
                 </Typography>
