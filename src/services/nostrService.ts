@@ -29,6 +29,20 @@ const RELAYS = [
 ];
 // NIP-50 (search) capable relays.
 const SEARCH_RELAYS = ["wss://relay.nostr.band", "wss://relay.noswhere.com"];
+// High-volume Nostr hashtags so the bridged feed is actually populated.
+const POPULAR_TAGS = ["nostr", "bitcoin", "news", "technology", "ai", "art", "music", "sports", "politics", "food", "gaming", "crypto", "science", "photography", "travel", "health", "memes", "plebchain", "grownostr"];
+
+// querySync that can never hang (some relays never send EOSE for NIP-50 search).
+function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([p, new Promise<T>((res) => setTimeout(() => res(fallback), ms))]);
+}
+
+// NIP-10: the event id this note is replying to (reply marker → root → last e-tag).
+function replyParent(e: NostrEvent): string | null {
+  const es = (e.tags ?? []).filter((t) => t[0] === "e" && t[1]);
+  if (!es.length) return null;
+  return (es.find((t) => t[3] === "reply") ?? es.find((t) => t[3] === "root") ?? es[es.length - 1])[1];
+}
 
 const hexToBytes = (hex: string) => { const a = new Uint8Array(hex.length / 2); for (let i = 0; i < a.length; i++) a[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16); return a; };
 const bytesToHex = (b: Uint8Array) => [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
@@ -57,17 +71,20 @@ class NostrService {
   myNpub(): string { return this.pkHex ? nip19.npubEncode(this.pkHex) : ""; }
   isStarted() { return this.started; }
 
-  /** Begin streaming Nostr notes for the topics you follow in Ledger. */
+  /** Begin streaming Nostr notes. We subscribe to a broad set of high-volume
+   *  Nostr hashtags (so the feed actually fills) PLUS the topics you follow in
+   *  Ledger — Ledger's topic slugs alone (#worldnews, #localnews…) barely exist
+   *  on Nostr, which is why nothing showed before. */
   async start() {
     if (this.started) return;
     this.started = true;
     await this.myKeys();
-    let tags: string[] = [];
+    let topicTags: string[] = [];
     try {
       const cfg = await rssService.config();
-      tags = [...new Set((cfg.topics ?? []).map(topicSlug).filter((t) => t.length > 1))].slice(0, 12);
+      topicTags = (cfg.topics ?? []).map(topicSlug).filter((t) => t.length > 2);
     } catch {}
-    if (!tags.length) tags = ["nostr", "bitcoin", "technology"];
+    const tags = [...new Set([...POPULAR_TAGS, ...topicTags])].slice(0, 24);
     this.subscribe(tags);
   }
 
@@ -92,7 +109,16 @@ class NostrService {
     if (!e || e.kind !== 1 || this.seen.has(e.id)) return;
     this.seen.add(e.id);
     try { if (!verifyEvent(e)) return; } catch { return; }   // drop unverifiable notes
-    await feedService.ingest(this.toPost(e));
+    const post = this.toPost(e);
+    // NIP-10: if this note replies to a note/post we already have, thread it as a
+    // comment; otherwise leave it top-level (don't orphan it into the void).
+    const parentEventId = replyParent(e);
+    if (parentEventId) {
+      const local = `nostr_${parentEventId}`;
+      if (await storage.getPost(local)) post.replyTo = local;
+      else { const mirror = await storage.kvGet<{ ledgerId?: string }>("nostr:mirrorback:" + parentEventId); if (mirror?.ledgerId) post.replyTo = mirror.ledgerId; }
+    }
+    await feedService.ingest(post);
     this.ensureProfile(e.pubkey);
   }
 
@@ -160,18 +186,18 @@ class NostrService {
     if (/^npub1[a-z0-9]+$/i.test(query)) {
       try {
         const { data } = nip19.decode(query);
-        const events = await this.pool.querySync(RELAYS, { kinds: [1], authors: [data as string], limit: 40 });
+        const events = await withTimeout(this.pool.querySync(RELAYS, { kinds: [1], authors: [data as string], limit: 40 }), 8000, [] as NostrEvent[]);
         this.ensureProfile(data as string);
         for (const e of events) await this.onNote(e);
         return events.length;
       } catch { return 0; }
     }
     let n = 0;
-    // NIP-50 full-text search (search-capable relays).
-    try { for (const e of await this.pool.querySync(SEARCH_RELAYS, { kinds: [1], search: query, limit: 40 })) { await this.onNote(e); n++; } } catch {}
+    // NIP-50 full-text search (search-capable relays) — timed so a non-EOSE relay can't hang it.
+    try { for (const e of await withTimeout(this.pool.querySync(SEARCH_RELAYS, { kinds: [1], search: query, limit: 40 }), 8000, [] as NostrEvent[])) { await this.onNote(e); n++; } } catch {}
     // Hashtag fallback (works on every relay) — robust even when NIP-50 is flaky.
     const tag = query.toLowerCase().replace(/[^a-z0-9]/g, "");
-    if (tag.length >= 2) { try { for (const e of await this.pool.querySync(RELAYS, { kinds: [1], "#t": [tag], limit: 30 })) { await this.onNote(e); n++; } } catch {} }
+    if (tag.length >= 2) { try { for (const e of await withTimeout(this.pool.querySync(RELAYS, { kinds: [1], "#t": [tag], limit: 30 }), 8000, [] as NostrEvent[])) { await this.onNote(e); n++; } } catch {} }
     return n;
   }
 
@@ -208,6 +234,8 @@ class NostrService {
     const ev = await this.publishNote(body, post.tags ?? []);
     const ref = { id: ev.id, pubkey: ev.pubkey };
     await storage.kvSet(key, ref);
+    // reverse map: a Nostr reply to this mirrored note threads back under the Ledger post
+    await storage.kvSet("nostr:mirrorback:" + ev.id, { ledgerId: post.id });
     return ref;
   }
 
