@@ -203,23 +203,9 @@ export default function FeedView() {
             <Button size="small" startIcon={<ClearRoundedIcon />} onClick={() => nav("/")}>Clear</Button>
           </GlassCard>
         )}
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2, flexWrap: "wrap", gap: { xs: 1, md: 1 } }}>
-          <ToggleButtonGroup
-            exclusive size="small" value={algo}
-            onChange={(_, v) => v && setSettings({ feedAlgorithm: v })}
-            sx={{ flexWrap: "wrap", "& .MuiToggleButton-root": { border: "1px solid rgba(58,155,240,0.18)", color: "text.secondary", fontSize: { xs: "0.75rem", sm: "0.875rem" }, px: { xs: 0.75, sm: 1 }, "&.Mui-selected": { background: "linear-gradient(135deg,#3f97ff,#1668e0)", color: "#ffffff" } } }}
-          >
-            {ALGOS.map((a) => <ToggleButton key={a.id} value={a.id}>{a.label}</ToggleButton>)}
-          </ToggleButtonGroup>
-          <Box sx={{ flex: 1 }} />
-          <Button size="small" variant="outlined" startIcon={<RefreshRoundedIcon sx={{ animation: refreshing ? "zbspin 1s linear infinite" : "none", "@keyframes zbspin": { to: { transform: "rotate(360deg)" } } }} />} onClick={doRefresh} disabled={refreshing} sx={{ textTransform: "none", fontWeight: 600, flex: { xs: "1 1 auto", sm: "0 0 auto" }, minWidth: { xs: 0, sm: "auto" }, fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
-            {refreshing ? "Refreshing…" : "Refresh"}
-          </Button>
-        </Stack>
-
         <Composer community={community ?? undefined} />
 
-        {/* Content-type filter + keyword search over the feed */}
+        {/* Controls: Row 1 = Search, Row 2 = Tabs + Filter Chips + Refresh */}
         <Stack spacing={1} sx={{ mb: 2 }}>
           <TextField
             size="small" fullWidth placeholder="Search posts, people, #tags…" value={query}
@@ -229,15 +215,31 @@ export default function FeedView() {
               endAdornment: query ? <InputAdornment position="end"><IconButton size="small" onClick={() => setQuery("")}><ClearRoundedIcon fontSize="small" /></IconButton></InputAdornment> : undefined,
             }}
           />
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-            {FILTERS.map((f) => (
-              <Chip key={f.id} label={f.label} size="small" onClick={() => setFilter(f.id)}
-                variant={filter === f.id ? "filled" : "outlined"}
-                sx={filter === f.id
-                  ? { background: "linear-gradient(135deg,#3f97ff,#1668e0)", color: "#fff", fontWeight: 700 }
-                  : { borderColor: "rgba(58,155,240,0.3)", color: "text.secondary" }} />
-            ))}
-          </Box>
+
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ flexWrap: "wrap", gap: { xs: 1, md: 1 } }}>
+            <ToggleButtonGroup
+              exclusive size="small" value={algo}
+              onChange={(_, v) => v && setSettings({ feedAlgorithm: v })}
+              sx={{ flexWrap: "wrap", "& .MuiToggleButton-root": { border: "1px solid rgba(58,155,240,0.18)", color: "text.secondary", fontSize: { xs: "0.75rem", sm: "0.875rem" }, px: { xs: 0.75, sm: 1 }, "&.Mui-selected": { background: "linear-gradient(135deg,#3f97ff,#1668e0)", color: "#ffffff" } } }}
+            >
+              {ALGOS.map((a) => <ToggleButton key={a.id} value={a.id}>{a.label}</ToggleButton>)}
+            </ToggleButtonGroup>
+
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, ml: 1 }}>
+              {FILTERS.map((f) => (
+                <Chip key={f.id} label={f.label} size="small" onClick={() => setFilter(f.id)}
+                  variant={filter === f.id ? "filled" : "outlined"}
+                  sx={filter === f.id
+                    ? { background: "linear-gradient(135deg,#3f97ff,#1668e0)", color: "#fff", fontWeight: 700 }
+                    : { borderColor: "rgba(58,155,240,0.3)", color: "text.secondary" }} />
+              ))}
+            </Box>
+
+            <Box sx={{ flex: 1 }} />
+            <Button size="small" variant="outlined" startIcon={<RefreshRoundedIcon sx={{ animation: refreshing ? "zbspin 1s linear infinite" : "none", "@keyframes zbspin": { to: { transform: "rotate(360deg)" } } }} />} onClick={doRefresh} disabled={refreshing} sx={{ textTransform: "none", fontWeight: 600, flex: { xs: "1 1 auto", sm: "0 0 auto" }, minWidth: { xs: 0, sm: "auto" }, fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
+              {refreshing ? "Refreshing…" : "Refresh"}
+            </Button>
+          </Stack>
         </Stack>
 
         {refreshing && (
