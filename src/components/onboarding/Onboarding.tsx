@@ -1,16 +1,29 @@
 import { useRef, useState } from "react";
-import { Box, Button, TextField, Typography, Stack, Divider, Chip } from "@mui/material";
+import { Box, Button, TextField, Typography, Stack, Divider, Chip, Link } from "@mui/material";
+import QrCodeScannerRoundedIcon from "@mui/icons-material/QrCodeScannerRounded";
+import InstallMobileRoundedIcon from "@mui/icons-material/InstallMobileRounded";
 import GlassCard from "@/components/common/GlassCard";
 import { identityService } from "@/services/identityService";
 import { onOnboarded } from "@/services";
 import { useStore } from "@/store/useStore";
 import { toast } from "@/lib/events";
+import QrScanDialog from "@/components/profile/QrScanDialog";
+import InstallHelpDialog from "@/components/layout/InstallHelpDialog";
 
 export default function Onboarding() {
   const refreshMe = useStore((s) => s.refreshMe);
   const [username, setUsername] = useState("");
   const [busy, setBusy] = useState(false);
+  const [scan, setScan] = useState(false);
+  const [install, setInstall] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Scanned the QR from a signed-in device → hand the link to the receiver.
+  function onScanned(frag: string) {
+    setScan(false);
+    location.replace(`${location.pathname}${location.search}${frag}`);
+    location.reload();
+  }
 
   async function create() {
     setBusy(true);
@@ -59,17 +72,32 @@ export default function Onboarding() {
             Generate my identity →
           </Button>
 
-          <Divider><Chip label="or" size="small" /></Divider>
+          <Divider><Chip label="already have an account?" size="small" /></Divider>
 
-          <Button variant="outlined" disabled={busy} onClick={() => fileRef.current?.click()}>
-            Import an identity file
+          <Button variant="outlined" disabled={busy} startIcon={<QrCodeScannerRoundedIcon />} onClick={() => setScan(true)}>
+            Scan a signed-in device
+          </Button>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: -1 }}>
+            On your other device, open <b>Profile → Edit profile → "Log in on another device"</b> to show its QR — your whole profile copies over.
+          </Typography>
+
+          <Button variant="text" disabled={busy} onClick={() => fileRef.current?.click()}>
+            Import an identity file instead
           </Button>
           <input ref={fileRef} type="file" accept="application/json" hidden onChange={(e) => importFile(e.target.files?.[0])} />
         </Stack>
 
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 3 }}>
-          🔐 Your private key never leaves this device. Export it any time to move to another device — it's just a file.
-        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1, mt: 3 }}>
+          <Typography variant="caption" color="text.secondary">
+            🔐 Your private key never leaves this device.
+          </Typography>
+          <Link component="button" type="button" variant="caption" underline="hover" onClick={() => setInstall(true)} sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, fontWeight: 700 }}>
+            <InstallMobileRoundedIcon sx={{ fontSize: 16 }} /> Install on your phone
+          </Link>
+        </Box>
+
+        <QrScanDialog open={scan} onClose={() => setScan(false)} onFound={onScanned} />
+        <InstallHelpDialog open={install} onClose={() => setInstall(false)} />
       </GlassCard>
     </Box>
   );
