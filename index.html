@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#1668e0" />
+    <title>ZuccBook — the local-first social universe</title>
+    <meta name="description" content="ZuccBook is a decentralized, local-first social platform that runs in your browser. You own your identity, your feed is generated locally by on-device AI, and communication is peer-to-peer. No accounts, no servers, ~$0 to host." />
+
+    <!-- Progressive Web App: installable on Android (Chrome/Edge) and iOS
+         (Safari → Share → Add to Home Screen). All paths are relative so the
+         install works from any deploy path (domain root, Pages subpath, IPFS). -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="ZuccBook" />
+    <style>
+      html, body, #root { height: 100%; margin: 0; }
+      /* Bliss uses the real XP faces (Trebuchet MS / Tahoma) which ship on
+         Windows; system-ui is the fallback elsewhere — nothing to download. */
+      body { background: #6aa9e4; color: #1b2733; font-family: "Tahoma", "Segoe UI", system-ui, sans-serif; overscroll-behavior: none; overflow-x: hidden; }
+      /* boot splash shown until React mounts — Luna blue glass */
+      #boot { position: fixed; inset: 0; display: grid; place-items: center; z-index: 9999; transition: opacity .5s ease;
+        background:
+          radial-gradient(120% 70% at 78% 120%, #95bd5e 0%, #6d9c40 26%, #3f6f28 46%, transparent 58%),
+          linear-gradient(180deg, #2f7ad6 0%, #6aa9e4 34%, #bfe0f7 64%, #eaf5ff 82%, #cfe6c4 100%); }
+      #boot .mark { font-family: "Trebuchet MS", "Segoe UI", Tahoma, system-ui, sans-serif; font-weight: 700; font-size: 11vw; letter-spacing: .01em; color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,0.35), 0 0 2px rgba(0,0,0,0.5); animation: pulse 2.4s ease-in-out infinite; }
+      @keyframes pulse { 0%,100%{opacity:.82} 50%{opacity:1} }
+    </style>
+    <script type="module" crossorigin src="./assets/index-C2yweuds.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-C9QhcR8G.css">
+  </head>
+  <body class="bl-root" data-bl-theme="blue">
+    <div id="boot"><div class="mark">ZuccBook</div></div>
+    <div id="root"></div>
+  </body>
+</html>
