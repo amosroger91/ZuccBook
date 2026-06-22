@@ -1,7 +1,12 @@
+import { useState } from "react";
 import { Box, Stack, Typography, Select, MenuItem, Switch, FormControlLabel, Divider, Button } from "@mui/material";
+import QrCode2RoundedIcon from "@mui/icons-material/QrCode2Rounded";
+import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
 import GlassCard from "@/components/common/GlassCard";
+import DeviceLoginDialog from "@/components/profile/DeviceLoginDialog";
 import { useStore } from "@/store/useStore";
 import { factCheckService } from "@/services/factCheckService";
+import { identityService } from "@/services/identityService";
 import type { FeedAlgorithm, ModerationProfile, CompanionPersona, PresenceStatus } from "@/types";
 import { toast } from "@/lib/events";
 
@@ -13,6 +18,7 @@ const STATUS: PresenceStatus[] = ["online", "idle", "away", "dnd"];
 export default function SettingsView() {
   const settings = useStore((s) => s.settings);
   const setSettings = useStore((s) => s.setSettings);
+  const [deviceLogin, setDeviceLogin] = useState(false);
 
   function row(label: string, hint: string, control: React.ReactNode) {
     return (
@@ -59,10 +65,20 @@ export default function SettingsView() {
           <Switch checked={settings.showFactChecks} onChange={(e) => { setSettings({ showFactChecks: e.target.checked }); if (e.target.checked) factCheckService.refresh().catch(() => {}); }} />)}
       </GlassCard>
 
+      <GlassCard sx={{ mb: 2 }}>
+        <Typography variant="overline" color="text.secondary">Account & devices</Typography>
+        {row("Log in on another device", "Show a QR / link that copies your whole account to another device — peer-to-peer, nothing on a server.",
+          <Button variant="outlined" startIcon={<QrCode2RoundedIcon />} onClick={() => setDeviceLogin(true)}>Log in on another device</Button>)}
+        <Divider />
+        {row("Download profile data", "Save your full account (keys, avatar, bio, custom page) as a file you can import on another device.",
+          <Button variant="outlined" startIcon={<DownloadRoundedIcon />} onClick={() => { identityService.exportFile(); toast("Profile data downloaded", "success"); }}>Download profile data</Button>)}
+        <DeviceLoginDialog open={deviceLogin} onClose={() => setDeviceLogin(false)} />
+      </GlassCard>
+
       <GlassCard>
         <Typography variant="overline" color="text.secondary">Data</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          Everything lives in this browser (IndexedDB + localStorage). Clearing site data wipes your local copy — export your identity first from the Profile page.
+          Everything lives in this browser (IndexedDB + localStorage). Clearing site data wipes your local copy — download your profile data first (above).
         </Typography>
         <Button color="error" variant="outlined" sx={{ mt: 1.5 }} onClick={() => { if (confirm("Reset Ledger on this device? This clears local data. Export your identity first!")) { indexedDB.deleteDatabase("nebula"); localStorage.clear(); location.reload(); } }}>
           Reset this device
