@@ -1,28 +1,21 @@
 // ============================================================
-//  node/contributor.js — what makes a desktop Ledger Node actually
-//  CONTRIBUTE (mode === "node"). Two jobs on top of the shared engine:
-//
-//    1) Publish aggregated RSS stories into the GLOBAL feed (Gun `posts`)
-//       — this is the "we may use your machine for network computation"
-//       part: your PC pulls the open web in and seeds it for everyone.
-//    2) Report a SIGNED contribution heartbeat to the relay every few
-//       minutes so your identity earns network points (uptime + items).
-//
-//  No identity loaded → still publishes (anonymous contribution), just
-//  no heartbeat and no points.
+//  node/contributor.js — desktop Ledger Node extra (mode === "node"):
+//  report a SIGNED contribution heartbeat to the relay so the operator
+//  earns network points (uptime + items). The RSS publishing itself
+//  lives in publisher.js (shared with the central relay), so a node's
+//  "items" credit = how many stories it has published to the feed.
+//  No identity loaded → still contributes (publishes), just no heartbeat
+//  and no points.
 // ============================================================
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { config } from "../config.js";
-import { getGun } from "../gun/relay.js";
-import { store } from "../store/index.js";
 import { identity } from "../identity.js";
+import { publishedCount } from "../publisher.js";
 
 const startedAt = Date.now();
-const publishedIds = new Set();
-let publishedCount = 0;
-let lastReport = { points: 0, online: false };
+let lastPoints = 0;
 let nodeId = "";
 
 /** Stable per-install node id (so item-delta accounting survives restarts). */
@@ -41,30 +34,6 @@ function ensureNodeId() {
   return nodeId;
 }
 
-/** Push any newly-aggregated RSS items into the shared Gun feed (idempotent
- *  by stable id, so many nodes seeding the same feeds converge to one copy). */
-function publishNewItems() {
-  const gun = getGun();
-  if (!gun) return 0;
-  const posts = gun.get(config.root).get("posts");
-  let n = 0;
-  for (const item of store.rss.values()) {
-    if (publishedIds.has(item.id)) continue;
-    publishedIds.add(item.id);
-    // drop API-only provenance fields; publish the clean Post shape
-    const { feedId, feedTitle, link, ...post } = item;
-    try {
-      posts.get(post.id).put({ json: JSON.stringify(post) });
-      publishedCount++;
-      n++;
-    } catch {
-      /* skip one bad record */
-    }
-  }
-  if (n) console.log(`[node] published ${n} new item(s) to the global feed (total ${publishedCount})`);
-  return n;
-}
-
 /** Sign and send a contribution heartbeat to the relay (earns points). */
 async function heartbeat() {
   if (!identity.loaded) return; // anonymous: contribute, but nothing to credit
@@ -73,7 +42,7 @@ async function heartbeat() {
       pk: identity.pk,
       name: identity.name,
       nodeId,
-      items: publishedCount, // cumulative; the relay credits the capped delta
+      items: publishedCount(), // cumulative; the relay credits the capped delta
       uptimeSec: Math.round((Date.now() - startedAt) / 1000),
       at: Date.now(),
     };
@@ -85,24 +54,20 @@ async function heartbeat() {
     });
     if (r.ok) {
       const j = await r.json();
-      lastReport = { points: j.points ?? lastReport.points, online: true };
-      console.log(`[node] heartbeat ok · ${identity.fingerprint()} · ${lastReport.points} pts`);
+      lastPoints = j.points ?? lastPoints;
+      console.log(`[node] heartbeat ok · ${identity.fingerprint()} · ${lastPoints} pts`);
     }
   } catch {
-    /* relay unreachable — try again next interval */
+    /* relay unreachable — retry next interval */
   }
 }
 
 export function startContributor() {
   ensureNodeId();
-  // publish shortly after boot (feeds need a moment to fill), then on a timer
-  setTimeout(publishNewItems, 6000);
-  setInterval(publishNewItems, 30000);
-  // heartbeat: first one soon (so points show up fast), then every heartbeatMs
-  setTimeout(heartbeat, Math.min(8000, config.heartbeatMs));
+  setTimeout(heartbeat, Math.min(8000, config.heartbeatMs)); // first beat soon
   setInterval(heartbeat, config.heartbeatMs);
   console.log(
-    `[node] contributor mode · id=${nodeId} · identity=${identity.loaded ? identity.fingerprint() : "anonymous"} · relay=${config.relayBase}`,
+    `[node] contributor · id=${nodeId} · identity=${identity.loaded ? identity.fingerprint() : "anonymous"} · relay=${config.relayBase}`,
   );
 }
 
@@ -113,9 +78,9 @@ export function nodeStats() {
     nodeId,
     identity: identity.loaded ? identity.fingerprint() : "anonymous",
     anonymous: !identity.loaded,
-    published: publishedCount,
+    published: publishedCount(),
     uptimeSec: Math.round((Date.now() - startedAt) / 1000),
-    points: lastReport.points,
+    points: lastPoints,
     relay: config.relayBase,
   };
 }

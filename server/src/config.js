@@ -38,6 +38,9 @@ export const config = {
   // "node"  = a contributor running on someone's PC: it ALSO publishes aggregated
   //           RSS into the global feed and reports signed heartbeats to earn points.
   mode: env.LEDGER_MODE === "node" ? "node" : "relay",
+  // Publish aggregated RSS into the global Gun feed so every client sees it.
+  // ON by default — the central relay seeds the feed; desktop nodes also publish.
+  publishRss: env.LEDGER_PUBLISH_RSS !== "false",
   // Where a contributor node reports its points.
   relayBase: (env.LEDGER_RELAY || "https://ledger-server.onrender.com").replace(/\/$/, ""),
   // Path to the operator's identity JSON (the file the web app exports). Empty =

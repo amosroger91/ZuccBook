@@ -16,6 +16,7 @@ import { aggregator } from "./rss/aggregator.js";
 import { buildRouter } from "./routes.js";
 import { loadIdentity } from "./identity.js";
 import { startContributor } from "./node/contributor.js";
+import { startPublisher } from "./publisher.js";
 
 const app = express();
 app.use(
@@ -30,9 +31,10 @@ const server = http.createServer(app);
 
 startGunRelay(server); // 1) persistence (both modes are Gun peers)
 aggregator.start(); // 2) aggregation
+if (config.publishRss) startPublisher(); // 3) seed the global feed with aggregated RSS
 
-// In "node" mode this box is a CONTRIBUTOR: load the operator's identity (if any)
-// and start publishing to the global feed + reporting signed point heartbeats.
+// In "node" mode this box is also a CONTRIBUTOR: load the operator's identity
+// (if any) and report signed point heartbeats to earn network points.
 if (config.mode === "node") {
   loadIdentity();
   startContributor();
