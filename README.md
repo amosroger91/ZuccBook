@@ -108,8 +108,11 @@ and trap you inside it. Ledger does the opposite — it assumes the good stuff l
 out *there*, on everyone else's timelines, and simply **tunes in.** Through RSS,
 your Ledger timeline can monitor *other* timelines: news sites, YouTube channels,
 **TikTok creators**, podcasts, subreddits, GitHub releases, a daily Bible verse —
-any feed on the open web. The "RSS Bot" pulls them in and posts them right alongside
-your friends' posts.
+any feed on the open web. An always-on **relay** pulls the whole catalog server-side
+every few minutes and seeds the stories into the shared feed, so they appear right
+alongside your friends' posts and **your device never has to fetch them.** You only
+pull anything yourself if you hit "Refresh now" wanting something fresher than the
+relay's last cycle.
 
 And the part that matters most: **you control your own algorithm.** There is no
 engagement-maximizing black box optimizing for outrage to sell ads. *You* pick the
@@ -247,7 +250,9 @@ financial advice.** Only use small amounts you can afford to lose.
 
 - The public PeerJS broker is best-effort; heavy use would want a self-hosted relay.
 - Voice/video is a mesh, so it's tuned for small rooms (~8).
-- RSS feeds are fetched through public CORS proxies, so a source can occasionally fail.
+- RSS is fetched **server-side by the always-on relay** (it refreshes the whole topic
+  catalog every ~10 min and seeds the feed for everyone); clients only fetch on a manual
+  "Refresh now." A few sources behind aggressive anti-bot walls can still come up empty.
 - True background posting while the tab is closed needs a Service Worker; today the
   feed backfills "missed" stories on return and tops up while open.
 - The on-device LLM needs WebGPU and a one-time model download (then it's cached).
