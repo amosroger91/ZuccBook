@@ -67,7 +67,7 @@ export default function Composer({ community }: { community?: string }) {
   }
 
   return (
-    <GlassCard sx={{ mb: 2, p: { xs: 1.5, sm: 2 } }}>
+    <GlassCard sx={{ mb: 2, p: { xs: 1.5, sm: 2 }, overflow: "hidden" }}>
       <Stack direction="row" spacing={{ xs: 1, sm: 1.5 }}>
         <UserAvatar pk={me?.publicKey ?? ""} name={me?.username ?? "?"} avatar={me?.avatar} />
         <Box sx={{ flex: 1 }}>
@@ -97,20 +97,21 @@ export default function Composer({ community }: { community?: string }) {
             <Chip size="small" variant="outlined" label="local-only until posted" sx={{ opacity: 0.6, display: { xs: "none", sm: "inline-flex" } }} />
             <Button variant="contained" onClick={post} disabled={!text.trim() && !media.length} sx={{ ml: "auto" }}>Post</Button>
           </Stack>
-          {showPermanentWarning && (
-            <Box role="status" aria-live="polite" sx={{ mt: 0, mb: 0, display: 'flex', alignItems: 'center', gap: 1, p: 0, bgcolor: 'rgba(255,243,205,0.98)', borderTop: '1px solid rgba(255,235,59,0.32)', mx: { xs: -1.5, sm: -2 }, px: { xs: 1.5, sm: 2 }, borderBottomLeftRadius: 3, borderBottomRightRadius: 3, borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
-              <Box sx={{ flex: 1, py: 0.6 }}>
-                <Typography variant="caption" color="text.primary" component="p" sx={{ lineHeight: 1.2, mb: 0 }}>
-                  🔗 Posting is <b>permanent</b> — once it's out, it spreads across the network and can't be unsent or deleted. Post like it's forever, because it is.
-                </Typography>
-              </Box>
-              <IconButton size="small" aria-label="Dismiss permanent posting warning" onClick={() => { try { localStorage.setItem("composer:permanentWarningDismissed", "1"); } catch {} setShowPermanentWarning(false); }} sx={{ mr: 0.5 }}>
-                <CloseRoundedIcon fontSize="small" />
-              </IconButton>
-            </Box>
-          )}
         </Box>
       </Stack>
+      {showPermanentWarning && (
+        // Full-bleed footer: negative margins cancel the card's padding on the
+        // left/right/bottom so the banner spans the whole card and sits flush
+        // with the bottom edge (overflow:hidden on the card rounds its corners).
+        <Box role="status" aria-live="polite" sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: { xs: 1.5, sm: 2 }, mx: { xs: -1.5, sm: -2 }, mb: { xs: -1.5, sm: -2 }, px: { xs: 1.5, sm: 2 }, py: 0.75, bgcolor: 'rgba(255,243,205,0.98)', borderTop: '1px solid rgba(255,235,59,0.32)' }}>
+          <Typography variant="caption" color="text.primary" sx={{ flex: 1, lineHeight: 1.25 }}>
+            🔗 Posting is <b>permanent</b> — once it's out, it spreads across the network and can't be unsent or deleted. Post like it's forever, because it is.
+          </Typography>
+          <IconButton size="small" aria-label="Dismiss permanent posting warning" onClick={() => { try { localStorage.setItem("composer:permanentWarningDismissed", "1"); } catch {} setShowPermanentWarning(false); }} sx={{ mr: -0.5 }}>
+            <CloseRoundedIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      )}
       <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => attach(e.target.files?.[0])} />
       <input ref={audioRef} type="file" accept="audio/*,.mp3" hidden onChange={(e) => attachAudio(e.target.files?.[0])} />
       <GifPicker open={gifOpen} onClose={() => setGifOpen(false)} onPick={(url) => setMedia((m) => [...m, { type: "image", url, mime: "image/gif" }])} />
