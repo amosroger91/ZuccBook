@@ -23,7 +23,7 @@ import type { ChatMessage } from "@/types";
 const ROOMS = ["lounge", "gaming", "music", "study", "late-night", "tech-talk"];
 const REACTIONS = ["⭐", "🔥", "😂", "❤️", "👀", "🎉"];
 
-export default function ChatroomView() {
+export default function ChatroomView({ fullWidth }: { fullWidth?: boolean } = {}) {
   const me = useStore((s) => s.me);
   const [params] = useSearchParams();
   const autoJoined = useRef(false);
@@ -102,7 +102,7 @@ export default function ChatroomView() {
   /* ---------------- lobby (no room yet) ---------------- */
   if (!roomId) {
     return (
-      <Box sx={{ maxWidth: 800, mx: "auto" }}>
+      <Box sx={{ maxWidth: fullWidth ? "100%" : 800, mx: fullWidth ? 0 : "auto", width: "100%" }}>
         <Typography variant="h5">Chatrooms</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Live peer-to-peer rooms — text chat, presence, reactions, image sharing and voice/video, all with no server. Pick a room (everyone who picks the same one lands together) or make your own.
@@ -125,8 +125,8 @@ export default function ChatroomView() {
   /* ---------------- in a room ---------------- */
   const tiles = Object.entries(streams);
   return (
-    <Box sx={{ maxWidth: 1100, mx: "auto", height: "100%", display: "grid", gridTemplateColumns: { xs: "1fr", sm: "200px 1fr" }, gap: 2 }}>
-      <GlassCard sx={{ display: { xs: "none", sm: "block" } }}>
+    <Box sx={{ width: "100%", height: "100%", display: "grid", gridTemplateColumns: { xs: "1fr", sm: "200px 1fr" }, gap: 2, minHeight: 0 }}>
+      <GlassCard sx={{ display: { xs: "none", sm: "block" }, height: "fit-content" }}>
         <Stack direction="row" alignItems="center" sx={{ mb: 1 }}>
           <Typography variant="overline" color="text.secondary" sx={{ flex: 1 }}>In room ({members.length})</Typography>
         </Stack>
@@ -142,9 +142,9 @@ export default function ChatroomView() {
         {capped && <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>Big room — voice/video paused above {8} people.</Typography>}
       </GlassCard>
 
-      <Box sx={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-          <Typography variant="h6" sx={{ flex: 1 }}>#{roomId}</Typography>
+      <Box sx={{ display: "flex", flexDirection: "column", minHeight: 0, height: "100%" }}>
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1, flexWrap: "wrap" }}>
+          <Typography variant="h6" sx={{ flex: 1, minWidth: 0, wordBreak: "break-word" }}>#{roomId}</Typography>
           <Chip size="small" label={status} variant="outlined" sx={{ opacity: 0.7 }} />
           <Tooltip title="Mic"><IconButton color={mic ? "primary" : "default"} onClick={toggleMic} disabled={capped && !mic}><MicRoundedIcon /></IconButton></Tooltip>
           <Tooltip title="Camera"><IconButton color={cam ? "primary" : "default"} onClick={toggleCam} disabled={capped && !cam}><VideocamRoundedIcon /></IconButton></Tooltip>
@@ -164,7 +164,7 @@ export default function ChatroomView() {
           </Stack>
         )}
 
-        <GlassCard sx={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 1 }}>
+        <GlassCard sx={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 1, minHeight: 0 }}>
           {messages.length === 0 && <Typography color="text.secondary">No messages yet — say hi 👋</Typography>}
           {messages.map((m) => {
             if (m.author === "system") return <Typography key={m.id} variant="caption" color="text.secondary" sx={{ alignSelf: "center", fontStyle: "italic" }}>{m.text}</Typography>;

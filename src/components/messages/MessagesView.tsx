@@ -12,7 +12,7 @@ import { clockTime } from "@/lib/time";
 import { newId } from "@/lib/id";
 import type { ChatMessage } from "@/types";
 
-export default function MessagesView() {
+export default function MessagesView({ fullWidth }: { fullWidth?: boolean } = {}) {
   const me = useStore((s) => s.me);
   const presence = useStore((s) => s.presence);
   const [channel, setChannel] = useState("swarm");
@@ -44,8 +44,8 @@ export default function MessagesView() {
   }
 
   return (
-    <Box sx={{ maxWidth: 1000, mx: "auto", display: "grid", gridTemplateColumns: { xs: "1fr", sm: "220px 1fr" }, gap: 2, height: "100%" }}>
-      <GlassCard sx={{ display: { xs: "none", sm: "block" } }}>
+    <Box sx={{ width: "100%", display: "grid", gridTemplateColumns: { xs: "1fr", sm: "220px 1fr" }, gap: 2, height: "100%", minHeight: 0 }}>
+      <GlassCard sx={{ display: { xs: "none", sm: "block" }, height: "fit-content" }}>
         <Typography variant="overline" color="text.secondary">Conversations</Typography>
         <Stack spacing={0.5} sx={{ mt: 1 }}>
           {channels.map((c) => (
@@ -56,16 +56,16 @@ export default function MessagesView() {
         </Stack>
       </GlassCard>
 
-      <Box sx={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+      <Box sx={{ display: "flex", flexDirection: "column", minHeight: 0, height: "100%" }}>
         {/* on phones the sidebar is hidden — pick a conversation here */}
         <TextField select size="small" value={channel} onChange={(e) => setChannel(e.target.value)} sx={{ mb: 1, display: { xs: "block", sm: "none" } }} SelectProps={{ native: true }}>
           {channels.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
         </TextField>
         <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1, flexWrap: "wrap" }}>
-          <Typography variant="h6">{channels.find((c) => c.id === channel)?.label ?? "Chat"}</Typography>
+          <Typography variant="h6" sx={{ flex: 1, minWidth: 0, wordBreak: "break-word" }}>{channels.find((c) => c.id === channel)?.label ?? "Chat"}</Typography>
           <Chip size="small" label={channel === "swarm" ? "public relay" : "direct (E2E in Phase 2)"} variant="outlined" sx={{ opacity: 0.7 }} />
         </Stack>
-        <GlassCard sx={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 1 }}>
+        <GlassCard sx={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 1, minHeight: 0 }}>
           {messages.length === 0 && <Typography color="text.secondary">No messages yet. Say hi to the swarm 👋</Typography>}
           {messages.map((m) => {
             const mine = m.author === me?.publicKey;
