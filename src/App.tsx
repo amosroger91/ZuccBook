@@ -30,7 +30,6 @@ import GlobalWatchPlayer from "@/components/layout/GlobalWatchPlayer";
 import GlobalFeedVideo from "@/components/layout/GlobalFeedVideo";
 import GlobalSpotify from "@/components/layout/GlobalSpotify";
 import FloatingDocks from "@/components/layout/FloatingDocks";
-import AiSplash from "@/components/layout/AiSplash";
 import GeoConsent from "@/components/layout/GeoConsent";
 
 export default function App() {
@@ -60,7 +59,8 @@ export default function App() {
   return (
     <Box sx={{ minHeight: "100vh", position: "relative" }}>
       <Background />
-      <AiSplash />{/* full-screen launch overlay until the on-device AI is 30% downloaded (self-gating) */}
+      {/* AiSplash removed: WebLLM now loads on demand (not on boot), so a launch-time
+          download overlay would just cover the app for its 30s safety timeout. */}
       {ready && deviceLink && <DeviceLinkReceiver code={deviceLink.code} secret={deviceLink.secret} />}
       {ready && !deviceLink && !onboarded && <Onboarding />}
       {ready && !deviceLink && onboarded && (
