@@ -27,6 +27,9 @@ const PEERS = [
   "https://gun-manhattan.herokuapp.com/gun",
   "https://peer.wallie.io/gun",
   "https://relay.peer.ooo/gun",
+  // Ledger's own always-on relay (Apache -> ledger-server container): durable
+  // 24/7 persistence + it seeds the global feed with server-aggregated RSS.
+  "https://ledger.wellspringstudiollc.com/gun",
 ];
 // Frozen graph namespace — NOT brand text. This is the shared Gun root every
 // peer (and the relay backend) reads/writes; renaming it forks the entire

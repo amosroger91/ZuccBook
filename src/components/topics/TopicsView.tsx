@@ -3,6 +3,7 @@ import { Box, Stack, Typography, Switch, Button, TextField, Chip, FormControlLab
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import GlassCard from "@/components/common/GlassCard";
+import RelayFeeds from "./RelayFeeds";
 import { rssService, TOPIC_FEEDS, type RssConfig, type FeedKind } from "@/services/rssService";
 import { toast } from "@/lib/events";
 
@@ -60,6 +61,8 @@ export default function TopicsView() {
         </Box>
         <Button variant="contained" startIcon={<RefreshRoundedIcon />} disabled={busy} onClick={refresh}>{busy ? "Fetching…" : "Refresh now"}</Button>
       </Stack>
+
+      <RelayFeeds />
 
       <Stack spacing={2}>
         {topics.map((topic) => {

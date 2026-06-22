@@ -15,6 +15,7 @@ import { identityService } from "@/services/identityService";
 import { reputationService, BADGES } from "@/services/reputationService";
 import { communityService } from "@/services/communityService";
 import { profileService } from "@/services/profileService";
+import { relayService } from "@/services/relayService";
 import { useStore } from "@/store/useStore";
 import UserAvatar from "@/components/common/UserAvatar";
 import { compressAvatar, compressBanner } from "@/lib/image";
@@ -110,6 +111,13 @@ function StatTile({ label, value }: { label: string; value: React.ReactNode }) {
 function ProfileDisplay({ profile, own, onEdit }: { profile: Profile; own?: boolean; onEdit?: () => void }) {
   const nav = useNavigate();
   const rank = reputationService.rank(profile.reputation);
+  // Network-contribution points, earned by running a Ledger Node (from the relay).
+  const [netPoints, setNetPoints] = useState<number | null>(null);
+  useEffect(() => {
+    let ok = true;
+    relayService.points(profile.pk).then((c) => { if (ok) setNetPoints(c?.points ?? 0); });
+    return () => { ok = false; };
+  }, [profile.pk]);
   return (
     <Box sx={{ maxWidth: 760, mx: "auto" }}>
       <GlassCard sx={{ p: 0, overflow: "hidden", mb: 2 }}>
@@ -152,6 +160,7 @@ function ProfileDisplay({ profile, own, onEdit }: { profile: Profile; own?: bool
             <StatTile label="Reputation" value={profile.reputation} />
             <StatTile label="Rank" value={<span style={{ fontSize: 13 }}>{rank}</span>} />
             <StatTile label="Groups" value={profile.communities?.length ?? 0} />
+            <StatTile label="Network pts" value={netPoints === null ? "…" : netPoints} />
           </Stack>
 
           {!own && profile.walletAddress && (
