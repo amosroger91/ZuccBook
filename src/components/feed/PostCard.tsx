@@ -320,8 +320,14 @@ function richInline(str: string, censor: boolean): ReactNode[] {
   const txt = (s: string) => emojify(censor ? nsfwService.censorText(s) : s);
   let last = 0;
   let m: RegExpExecArray | null;
-  RICH_RE.lastIndex = 0;
-  while ((m = RICH_RE.exec(str))) {
+  // A FRESH regex per call — never the shared global RICH_RE. This function recurses
+  // (bold/italic/strike/link content), and a `/g` regex carries mutable `lastIndex`
+  // state: a recursive call would reset the parent's iterator mid-loop, so the outer
+  // loop re-scans the same span and re-recurses, blowing up to O(n²⁺) on ANY line with
+  // nested/repeated markup. That froze the feed for tens of seconds on real (markdown-
+  // heavy) Nostr posts; plain English with no markup never recursed, so it hid in tests.
+  const re = new RegExp(RICH_RE.source, "g");
+  while ((m = re.exec(str))) {
     if (m.index > last) nodes.push(<Fragment key={nodes.length}>{txt(str.slice(last, m.index))}</Fragment>);
     if (m[1]) nodes.push(<strong key={nodes.length}>{richInline(m[2], censor)}</strong>);
     else if (m[3]) nodes.push(<em key={nodes.length}>{richInline(m[4], censor)}</em>);
@@ -333,8 +339,8 @@ function richInline(str: string, censor: boolean): ReactNode[] {
       : <a key={nodes.length} href={m[9]} target="_blank" rel="noopener noreferrer" style={{ color: "#0a55cf", wordBreak: "break-all" }}>{m[9]}</a>);
     else if (m[10] !== undefined) nodes.push(<span key={nodes.length} style={{ color: "#1668e0", fontWeight: 600 }}>{m[10]}</span>);
     else if (m[11] !== undefined) nodes.push(<a key={nodes.length} href={`https://njump.me/${m[11]}`} target="_blank" rel="noopener noreferrer" style={{ color: "#0a55cf" }}>@{m[11].slice(0, 10)}…</a>);
-    last = RICH_RE.lastIndex;
-    if (RICH_RE.lastIndex === m.index) RICH_RE.lastIndex++;   // never loop on a zero-width match
+    last = re.lastIndex;
+    if (re.lastIndex === m.index) re.lastIndex++;   // never loop on a zero-width match
   }
   if (last < str.length) nodes.push(<Fragment key={nodes.length}>{txt(str.slice(last))}</Fragment>);
   return nodes;

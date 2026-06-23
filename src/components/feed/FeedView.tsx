@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef, useLayoutEffect } from "react";
 import { Box, ToggleButtonGroup, ToggleButton, Stack, Typography, Button, useMediaQuery, LinearProgress, Chip, CircularProgress, Avatar } from "@mui/material";
 import type { Theme } from "@mui/material";
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
@@ -17,8 +17,8 @@ import { changelogService } from "@/services/changelogService";
 import { storage } from "@/services/storage";
 import { useStore } from "@/store/useStore";
 import { bus } from "@/lib/events";
-import { diag } from "@/lib/diag";
 import { isOff } from "@/lib/flags";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { matchesFilter, type ContentFilter } from "@/lib/postType";
 import type { Post, RecommendationReason, FeedAlgorithm } from "@/types";
 
@@ -85,32 +85,40 @@ export default function FeedView() {
     [posts, filter, community],
   );
 
-  // Render the (already in-memory) feed incrementally: mount a small window of
-  // PostCards up front and grow it as you approach the end. PostCards are heavy
-  // (media, embeds, link-preview fetches), so rendering hundreds at once is what
-  // makes the first paint and scrolling slow. This is purely a render-time
-  // window — no extra network; we're just deferring DOM/work, not data.
-  const PAGE = 25;   // render a substantial first window (content-visibility keeps off-screen cards cheap) so the feed is scrollable even before the load-more observer kicks in
-  const [visibleCount, setVisibleCount] = useState(PAGE);
-  // Reset the window when the feed's identity changes (algorithm/filter/search/group).
-  useEffect(() => { setVisibleCount(PAGE); }, [algo, filter, community]);
-  const visiblePosts = useMemo(() => shown.slice(0, visibleCount), [shown, visibleCount]);
-  useEffect(() => { diag("FeedView: cards committed", visiblePosts.length); }, [visiblePosts]);
-  const hasMore = visibleCount < shown.length;
   // Latest `shown` for non-reactive handlers (e.g. deep-link focus below).
   const shownRef = useRef(shown);
   shownRef.current = shown;
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!hasMore) return;
-    const root = document.getElementById("app-scroll");
-    const el = sentinelRef.current;
-    if (!el) return;
-    // rootMargin pre-loads the next batch ~one screen early so scrolling never stalls.
-    const io = new IntersectionObserver((es) => { if (es[0].isIntersecting) setVisibleCount((v) => v + PAGE); }, { root, rootMargin: "1200px 0px" });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [hasMore, shown.length]);
+  // TRUE virtualization (TanStack Virtual): render only the cards in/near the viewport and
+  // UNMOUNT the rest, so the DOM — and every card's effects (the NSFW image check, embeds,
+  // link-preview fetches) — stays constant no matter how far you scroll. The list shares
+  // the app's #app-scroll container with the composer/controls above it, so we hand the
+  // virtualizer that scroll element plus a `scrollMargin` = the list's offset within it
+  // (re-measured when the header above changes height). Explicit offset control is exactly
+  // what the shared-scroll layout needs (react-virtuoso's auto-measure couldn't do it).
+  const listRef = useRef<HTMLDivElement>(null);
+  const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null);
+  useEffect(() => { setScrollEl(document.getElementById("app-scroll")); }, []);
+  const [scrollMargin, setScrollMargin] = useState(0);
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (!list || !scrollEl) return;
+    const measure = () => {
+      const top = list.getBoundingClientRect().top - scrollEl.getBoundingClientRect().top + scrollEl.scrollTop;
+      setScrollMargin((m) => (Math.abs(m - top) > 1 ? Math.max(0, Math.round(top)) : m));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (list.parentElement) ro.observe(list.parentElement);   // header above the list grows/shrinks → re-measure offset
+    return () => ro.disconnect();
+  }, [scrollEl, shown.length > 0]);
+  const virtualizer = useVirtualizer({
+    count: shown.length,
+    getScrollElement: () => scrollEl,
+    estimateSize: () => 480,        // a rough first guess; measureElement corrects each card's real height
+    overscan: 4,                    // a few extra cards above/below so fast scrolling never flashes blank
+    scrollMargin,
+    getItemKey: (i) => shown[i]?.id ?? i,
+  });
 
   // Build the ranked feed (pure — no state writes). Reused by the full refresh and
   // the background reconcile below.
@@ -191,10 +199,10 @@ export default function FeedView() {
   }, [refresh, applyBackground]);
   // Scroll to & highlight a post when an alert deep-links to it.
   useEffect(() => bus.on("focus:post", ({ postId }) => {
-    // The feed is windowed for performance — if the target is past the current
-    // window, reveal enough to mount it before we try to scroll to it.
+    // Virtualized feed: ask the virtualizer to scroll the row into view so it mounts,
+    // then highlight it once it's in the DOM.
     const idx = shownRef.current.findIndex((p) => p.id === postId);
-    if (idx >= 0) setVisibleCount((v) => Math.max(v, idx + 3));
+    if (idx >= 0) virtualizer.scrollToIndex(idx, { align: "center" });
     let tries = 0;
     const tick = () => {
       const el = document.getElementById(`post-${postId}`);
@@ -340,16 +348,29 @@ export default function FeedView() {
                 : "No posts to show."}
           </Typography></GlassCard>
         )}
-        {!isOff("cards") && visiblePosts.map((p) => (
-          // content-visibility:auto lets the browser skip rendering/layout for
-          // cards scrolled off-screen; contain-intrinsic-size "auto 480px"
-          // remembers each card's real height so the scrollbar doesn't jump.
-          // (Progressive enhancement — older browsers just render normally.)
-          <Box key={p.id} sx={{ contentVisibility: "auto", containIntrinsicSize: "auto 480px" }}>
-            <PostCard post={p} reason={reasons.get(p.id)} replies={replies.get(p.id) ?? []} replyMap={replies} verdict={verdicts.get(p.id)} />
+        {!isOff("cards") && shown.length > 0 && (
+          // The list container spans the FULL virtual height (so the scrollbar is correct);
+          // only the windowed cards are mounted inside it, absolutely positioned at their
+          // measured offset. translateY subtracts scrollMargin because the container already
+          // sits that far down the scroll (below the composer/controls).
+          <Box ref={listRef} sx={{ position: "relative", width: "100%" }} style={{ height: virtualizer.getTotalSize() }}>
+            {virtualizer.getVirtualItems().map((vi) => {
+              const p = shown[vi.index];
+              if (!p) return null;
+              return (
+                <Box
+                  key={vi.key}
+                  data-index={vi.index}
+                  ref={virtualizer.measureElement}
+                  sx={{ position: "absolute", top: 0, left: 0, width: "100%" }}
+                  style={{ transform: `translateY(${vi.start - virtualizer.options.scrollMargin}px)` }}
+                >
+                  <PostCard post={p} reason={reasons.get(p.id)} replies={replies.get(p.id) ?? []} replyMap={replies} verdict={verdicts.get(p.id)} />
+                </Box>
+              );
+            })}
           </Box>
-        ))}
-        {hasMore && <Box ref={sentinelRef} aria-hidden sx={{ height: 1 }} />}
+        )}
       </Box>
 
       {!compact && (
