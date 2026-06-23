@@ -15,6 +15,7 @@
 import Gun from "gun";
 import { bus } from "@/lib/events";
 import { feedService } from "./feedService";
+import { identityService } from "./identityService";
 import { profileService } from "./profileService";
 import { marketplaceService } from "./marketplaceService";
 import { trustService } from "./trustService";
@@ -106,6 +107,23 @@ class GunService {
       bus.on("market:publish", (l) => { try { gun?.get(ROOT).get("market").get(l.id).put({ json: JSON.stringify(l) }); } catch {} });
       bus.on("trust:publish", (e) => { try { gun?.get(ROOT).get("trust").get(`${e.from}|${e.to}|${e.community ?? ""}`).put({ json: JSON.stringify(e) }); } catch {} });
 
+      // Clean up YOUR OWN abusively-large posts on the graph BEFORE we subscribe. A post
+      // carrying multi-MB inline media (e.g. a 6MB base64 audio note) makes Gun choke for
+      // ~tens of seconds on EVERY node that syncs it — including yours on the next reload —
+      // which froze the feed. Null the graph node so the relay stops shipping it; the post
+      // stays in your local store (big media should travel as a ref, not inline). Runs
+      // before the deferred subscribe so the null propagates first.
+      (async () => {
+        try {
+          const me = identityService.current; if (!me) return;
+          for (const p of await storage.postsByAuthor(me.publicKey)) {
+            if ((p.media ?? []).reduce((a, m) => a + (m.url?.length ?? 0), 0) > 1_500_000) {
+              try { gun?.get(ROOT).get("posts").get(p.id).put(null); diag("gun: nulled oversized own post " + p.id.slice(0, 16)); } catch { /* best-effort */ }
+            }
+          }
+        } catch { /* best-effort */ }
+      })();
+
       // Incoming subscriptions replay the relay's ENTIRE graph on connect (Gun warns
       // "syncing 1K+ records a second") — processing that dump as it arrives is what
       // froze the initial load. So DEFER subscribing until the app has painted and
@@ -117,7 +135,8 @@ class GunService {
         if (!gun) return;
         diag("gun: subscribe fired");
         // Feed posts (human + bot) → queue, drained in yielding batches.
-        gun.get(ROOT).get("posts").map().on((d: any) => { if (d?.json) enqueuePost(d.json); });
+        let _postN = 0;
+        gun.get(ROOT).get("posts").map().on((d: any) => { if (d?.json) { if (++_postN % 200 === 0) diag("gun: posts delivered " + _postN + " (len " + d.json.length + ")"); enqueuePost(d.json); } });
         // Swarm Lounge messages → store + surface.
         gun.get(ROOT).get("swarm").map().on((d: any) => {
           if (!d?.json) return;
@@ -147,9 +166,12 @@ class GunService {
           if (d && typeof d.at === "number" && d.at > (rssLedger.get(key) ?? 0)) rssLedger.set(key, d.at);
         });
       };
-      const ric = (globalThis as any).requestIdleCallback;
-      if (typeof ric === "function") ric(subscribeIncoming, { timeout: 4000 });
-      else setTimeout(subscribeIncoming, 2500);
+      // DEFER the subscribe with a FIXED delay. requestIdleCallback fired ~0.5s in —
+      // before the feed had rendered — so the relay's full-graph replay (a big account's
+      // whole post history, re-merged by Gun synchronously) blocked first paint. A plain
+      // timer guarantees the feed commits and is interactive first, THEN the firehose
+      // streams in through the yielding queue.
+      setTimeout(subscribeIncoming, 3000);
     } catch (e) {
       console.warn("[gun] disabled (init failed)", e);
       gun = null;
