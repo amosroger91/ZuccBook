@@ -4,11 +4,14 @@ import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import PauseRoundedIcon from "@mui/icons-material/PauseRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import OpenInFullRoundedIcon from "@mui/icons-material/OpenInFullRounded";
+import YouTubeIcon from "@mui/icons-material/YouTube";
 import { useNavigate } from "react-router-dom";
 import { peerService } from "@/services/peerService";
 import { presenceService } from "@/services/presenceService";
 import { profileService } from "@/services/profileService";
 import { watchRoomService } from "@/services/watchRoomService";
+import { setUnloadGuard } from "@/lib/unloadGuard";
+import { openOnYouTube } from "@/lib/youtube";
 import { bus } from "@/lib/events";
 import { useStore } from "@/store/useStore";
 import { fingerprint } from "@/lib/crypto";
@@ -130,6 +133,19 @@ export default function GlobalWatchPlayer() {
 
   const active = !!stage?.videoId && closedId.current !== stage?.videoId;
 
+  // While a video is loaded, warn before an accidental refresh / tab-close that
+  // would lose it (in-app navigation keeps the mini player, so it's safe).
+  useEffect(() => {
+    setUnloadGuard("watch", active);
+    return () => setUnloadGuard("watch", false);
+  }, [active]);
+
+  // Pop the current video out to youtube.com at the exact moment you're watching.
+  function openYT() {
+    let t = 0; try { t = player.current?.getCurrentTime?.() ?? 0; } catch {}
+    openOnYouTube(vid.current ?? stage?.videoId ?? null, t);
+  }
+
   // (Re)create / sync the player whenever the active video changes.
   useEffect(() => {
     if (!active) { player.current = null; vid.current = null; return; }
@@ -168,11 +184,17 @@ export default function GlobalWatchPlayer() {
   if (!active) return null;
 
   return (
-    <Box ref={host} sx={{ position: "fixed", zIndex: docked ? 1 : 1250, overflow: "hidden", bgcolor: "#000", borderRadius: 1, border: docked ? "1px solid var(--bl-line)" : "1px solid rgba(0,0,0,0.4)", boxShadow: docked ? "none" : "0 10px 30px rgba(0,0,0,0.45)" }}>
+    <Box ref={host} sx={{ position: "fixed", zIndex: docked ? 1 : 1250, overflow: "hidden", bgcolor: "#000", borderRadius: 1, border: docked ? "1px solid var(--bl-line)" : "1px solid rgba(0,0,0,0.4)", boxShadow: docked ? "none" : "0 10px 30px rgba(0,0,0,0.45)", "& .yt-pop": { opacity: 0, transition: "opacity .15s" }, "&:hover .yt-pop": { opacity: 1 } }}>
       <Box ref={mount} sx={{ width: "100%", height: "100%" }} />
+      {docked && (
+        <Tooltip title="Open on YouTube (current time)">
+          <IconButton className="yt-pop" size="small" onClick={openYT} sx={{ position: "absolute", top: 6, right: 6, color: "#fff", bgcolor: "rgba(0,0,0,0.5)", "&:hover": { bgcolor: "rgba(0,0,0,0.75)" } }}><YouTubeIcon fontSize="small" /></IconButton>
+        </Tooltip>
+      )}
       {!docked && (
         <Stack direction="row" alignItems="center" spacing={0.5} sx={{ position: "absolute", top: 0, left: 0, right: 0, px: 0.5, py: 0.25, background: "linear-gradient(180deg, rgba(0,0,0,0.7), transparent)" }}>
           <Typography variant="caption" sx={{ color: "#fff", flex: 1, ml: 0.5 }}>Watch party</Typography>
+          <Tooltip title="Open on YouTube (current time)"><IconButton size="small" sx={{ color: "#fff" }} onClick={openYT}><YouTubeIcon fontSize="small" /></IconButton></Tooltip>
           <Tooltip title={stage?.playing ? "Pause" : "Play"}><IconButton size="small" sx={{ color: "#fff" }} onClick={toggle}>{stage?.playing ? <PauseRoundedIcon fontSize="small" /> : <PlayArrowRoundedIcon fontSize="small" />}</IconButton></Tooltip>
           <Tooltip title="Open"><IconButton size="small" sx={{ color: "#fff" }} onClick={() => nav("/listen")}><OpenInFullRoundedIcon fontSize="small" /></IconButton></Tooltip>
           <Tooltip title="Close"><IconButton size="small" sx={{ color: "#fff" }} onClick={close}><CloseRoundedIcon fontSize="small" /></IconButton></Tooltip>

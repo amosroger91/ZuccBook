@@ -3,7 +3,10 @@ import { Box, IconButton, Typography, Stack, Tooltip } from "@mui/material";
 import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import PauseRoundedIcon from "@mui/icons-material/PauseRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import YouTubeIcon from "@mui/icons-material/YouTube";
 import { bus } from "@/lib/events";
+import { setUnloadGuard } from "@/lib/unloadGuard";
+import { openOnYouTube } from "@/lib/youtube";
 
 // Shared YouTube IFrame API loader (one script for the whole app).
 let ytReady: Promise<any> | null = null;
@@ -95,19 +98,36 @@ export default function GlobalFeedVideo() {
     return () => cancelAnimationFrame(raf);
   }, [active, floating]);
 
+  // Warn before an accidental refresh / tab-close loses the video you're watching.
+  useEffect(() => {
+    setUnloadGuard("feedvideo", active);
+    return () => setUnloadGuard("feedvideo", false);
+  }, [active]);
+
   function toggle() {
     try { const p = player.current; if (!p) return; const YT = (window as any).YT; (p.getPlayerState?.() === YT.PlayerState.PLAYING ? p.pauseVideo : p.playVideo).call(p); } catch {}
   }
   function close() { try { player.current?.stopVideo?.(); } catch {} dockId.current = null; vid.current = null; setActive(false); }
+  // Pop the current video out to youtube.com at the exact moment you're watching.
+  function openYT() {
+    let t = 0; try { t = player.current?.getCurrentTime?.() ?? 0; } catch {}
+    openOnYouTube(vid.current, t);
+  }
 
   if (!active) return null;
 
   return (
-    <Box ref={host} sx={{ position: "fixed", zIndex: floating ? 1250 : 1, overflow: "hidden", bgcolor: "#000", borderRadius: 1, border: floating ? "1px solid rgba(0,0,0,0.4)" : "1px solid var(--bl-line)", boxShadow: floating ? "0 10px 30px rgba(0,0,0,0.45)" : "none" }}>
+    <Box ref={host} sx={{ position: "fixed", zIndex: floating ? 1250 : 1, overflow: "hidden", bgcolor: "#000", borderRadius: 1, border: floating ? "1px solid rgba(0,0,0,0.4)" : "1px solid var(--bl-line)", boxShadow: floating ? "0 10px 30px rgba(0,0,0,0.45)" : "none", "& .yt-pop": { opacity: 0, transition: "opacity .15s" }, "&:hover .yt-pop": { opacity: 1 } }}>
       <Box ref={mount} sx={{ width: "100%", height: "100%" }} />
+      {!floating && (
+        <Tooltip title="Open on YouTube (current time)">
+          <IconButton className="yt-pop" size="small" onClick={openYT} sx={{ position: "absolute", top: 6, right: 6, color: "#fff", bgcolor: "rgba(0,0,0,0.5)", "&:hover": { bgcolor: "rgba(0,0,0,0.75)" } }}><YouTubeIcon fontSize="small" /></IconButton>
+        </Tooltip>
+      )}
       {floating && (
         <Stack direction="row" alignItems="center" spacing={0.5} sx={{ position: "absolute", top: 0, left: 0, right: 0, px: 0.5, py: 0.25, background: "linear-gradient(180deg, rgba(0,0,0,0.7), transparent)" }}>
           <Typography variant="caption" sx={{ color: "#fff", flex: 1, ml: 0.5 }}>Playing</Typography>
+          <Tooltip title="Open on YouTube (current time)"><IconButton size="small" sx={{ color: "#fff" }} onClick={openYT}><YouTubeIcon fontSize="small" /></IconButton></Tooltip>
           <Tooltip title={playing ? "Pause" : "Play"}><IconButton size="small" sx={{ color: "#fff" }} onClick={toggle}>{playing ? <PauseRoundedIcon fontSize="small" /> : <PlayArrowRoundedIcon fontSize="small" />}</IconButton></Tooltip>
           <Tooltip title="Close"><IconButton size="small" sx={{ color: "#fff" }} onClick={close}><CloseRoundedIcon fontSize="small" /></IconButton></Tooltip>
         </Stack>
