@@ -61,7 +61,7 @@ function firstTikTok(text: string): string | null {
   const u = (text.match(/https?:\/\/[^\s]+/g) ?? []).find((x) => TIKTOK_RE.test(x));
   return u ? u.replace(/[)\].,]+$/, "") : null;
 }
-function firstLink(text: string): string | null {
+export function firstLink(text: string): string | null {
   const urls = text.match(/https?:\/\/[^\s]+/g) ?? [];
   return urls.find((u) => !IMG_RE.test(u) && !YT_RE.test(u) && !SPOTIFY_RE.test(u) && !TIKTOK_RE.test(u)) ?? null;
 }
@@ -244,7 +244,7 @@ function TikTokCard({ url }: { url: string }) {
 }
 
 // Open-Graph link preview card for any shared link.
-function LinkCard({ url }: { url: string }) {
+export function LinkCard({ url }: { url: string }) {
   const [d, setD] = useState<Preview | null>(null);
   useEffect(() => { let on = true; linkPreviewService.preview(url).then((p) => on && setD(p)).catch(() => {}); return () => { on = false; }; }, [url]);
   let host = url; try { host = new URL(url).hostname.replace(/^www\./, ""); } catch {}
