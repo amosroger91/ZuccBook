@@ -252,9 +252,9 @@ export function LinkCard({ url }: { url: string }) {
     <Box component="a" href={url} target="_blank" rel="noopener noreferrer" sx={{ display: "block", mt: 1.25, border: "1px solid var(--bl-line)", borderRadius: 2.5, overflow: "hidden", textDecoration: "none", color: "inherit", bgcolor: "var(--bl-white)", transition: "background .15s ease", "&:hover": { bgcolor: "rgba(58,155,240,0.04)" } }}>
       {d?.image && <Box component="img" src={d.image} loading="lazy" sx={{ width: "100%", maxHeight: 260, objectFit: "cover", display: "block" }} />}
       <Box sx={{ p: 1.25 }}>
-        <Typography variant="caption" sx={{ color: "text.secondary", textTransform: "uppercase", letterSpacing: 0.4, fontSize: 11 }}>{d?.site || host}</Typography>
-        <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.3, mt: 0.25, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{d?.title || host}</Typography>
-        {d?.description && <Typography variant="caption" color="text.secondary" sx={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", mt: 0.25 }}>{d.description}</Typography>}
+        <Typography variant="caption" sx={{ color: "text.secondary", textTransform: "uppercase", letterSpacing: 0.4, fontSize: 11 }}>{decodeEntities(d?.site || host)}</Typography>
+        <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.3, mt: 0.25, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{decodeEntities(d?.title || host)}</Typography>
+        {d?.description && <Typography variant="caption" color="text.secondary" sx={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", mt: 0.25 }}>{decodeEntities(d.description)}</Typography>}
       </Box>
     </Box>
   );

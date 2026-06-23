@@ -5,6 +5,7 @@
 //  Cached in memory + IndexedDB so each link is only fetched once.
 // ============================================================
 import { storage } from "./storage";
+import { decodeEntities } from "@/lib/htmlEntities";
 
 const PROXIES = [
   (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
@@ -14,8 +15,10 @@ const PROXIES = [
 export interface Preview { url: string; title?: string; description?: string; image?: string; site?: string; }
 
 const mem = new Map<string, Preview>();
-const decode = (s: string) => s
-  .replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+// Decode HTML entities in scraped meta tags. The shared helper covers numeric +
+// hex entities (e.g. &#225; → á, common in non-English RSS/OG titles), not just
+// the handful of named ones.
+const decode = decodeEntities;
 
 function meta(html: string, prop: string): string | undefined {
   const a = html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]+content=["']([^"']+)["']`, "i"));
