@@ -18,6 +18,7 @@ import { storage } from "@/services/storage";
 import { useStore } from "@/store/useStore";
 import { bus } from "@/lib/events";
 import { diag } from "@/lib/diag";
+import { isOff } from "@/lib/flags";
 import { matchesFilter, type ContentFilter } from "@/lib/postType";
 import type { Post, RecommendationReason, FeedAlgorithm } from "@/types";
 
@@ -76,7 +77,7 @@ export default function FeedView() {
     storage.communities().then((cs) => setCommunityName(cs.find((c) => c.id === community)?.name ?? "this group"));
   }, [community]);
 
-  const digest = useMemo(() => companionService.feedDigest(posts), [posts]);
+  const digest = useMemo(() => isOff("digest") ? { count: 0, people: 0, reactions: 0, themes: [] as string[], top: null } : companionService.feedDigest(posts), [posts]);
 
   // Client-side content-type + keyword (+ group) filtering over the ranked feed.
   const shown = useMemo(
@@ -339,7 +340,7 @@ export default function FeedView() {
                 : "No posts to show."}
           </Typography></GlassCard>
         )}
-        {visiblePosts.map((p) => (
+        {!isOff("cards") && visiblePosts.map((p) => (
           // content-visibility:auto lets the browser skip rendering/layout for
           // cards scrolled off-screen; contain-intrinsic-size "auto 480px"
           // remembers each card's real height so the scrollbar doesn't jump.

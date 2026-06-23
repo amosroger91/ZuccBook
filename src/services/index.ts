@@ -22,6 +22,7 @@ import { factCheckService } from "./factCheckService";
 import { changelogService } from "./changelogService";
 import { nostrService } from "./nostrService";
 import { alertsService } from "./alertsService";
+import { isOff } from "@/lib/flags";
 import type { AppSettings } from "@/types";
 
 export interface BootResult { onboarded: boolean; settings: AppSettings }
@@ -60,7 +61,7 @@ export async function boot(): Promise<BootResult> {
   // recentPosts() now bounds its own read, so an oversized cache no longer slows the
   // feed; running prune's full-store scan during first paint + the relay flood only
   // stole main-thread time from the initial load. Defer it past the opening burst.
-  setTimeout(() => storage.pruneEphemeralPosts().catch(() => {}), 15000);
+  if (!isOff("prune")) setTimeout(() => storage.pruneEphemeralPosts().catch(() => {}), 15000);
   const me = await identityService.load();
   companionService.configure(settings.useWebLLM, settings.llmModel);
   // "Just download it" — start fetching the model immediately (best-effort,
@@ -72,34 +73,34 @@ export async function boot(): Promise<BootResult> {
 
   if (me) {
     presenceService.setStatus(settings.presenceStatus);
-    geoService.init().catch(() => {}); // coarse location for the network map (cache → IP fallback)
-    await communityService.seedDefaults();
-    gunService.start();   // durable cross-user persistence + sync (posts, swarm, profiles)
-    peerService.start();
-    profileService.publishSelf().catch(() => {}); // share my public profile
+    if (!isOff("geo")) geoService.init().catch(() => {}); // coarse location for the network map (cache → IP fallback)
+    if (!isOff("communities")) await communityService.seedDefaults();
+    if (!isOff("gun")) gunService.start();   // durable cross-user persistence + sync (posts, swarm, profiles)
+    if (!isOff("peer")) peerService.start();
+    if (!isOff("publish")) profileService.publishSelf().catch(() => {}); // share my public profile
     // The feed loads from the MESH: the always-on relay fetches RSS and seeds it into
     // the Gun graph, and we receive it via gunService — so a fresh node loads what the
     // network already has (instantly, if anyone fetched in the last hour) instead of
     // re-fetching ~85 feeds itself, which is what froze "building a new feed". We only
     // seed the default topic SUBSCRIPTIONS here (for the Topics UI + the "For You"
     // filter); the sole client-side fetch is the manual "Refresh" button in Topics.
-    rssService.seedDefaults().catch(() => {});
-    changelogService.refresh().catch(() => {}); // repo commits → timeline activity
-    if (settings.showFactChecks) factCheckService.refresh().catch(() => {}); // PolitiFact index
-    if (settings.nostrEnabled !== false) nostrService.start().catch(() => {}); // stream Nostr notes for your topics
-    setInterval(() => storage.pruneEphemeralPosts().catch(() => {}), 10 * 60 * 1000); // keep the RSS/Nostr cache bounded during long sessions
+    if (!isOff("rss")) rssService.seedDefaults().catch(() => {});
+    if (!isOff("changelog")) changelogService.refresh().catch(() => {}); // repo commits → timeline activity
+    if (settings.showFactChecks && !isOff("factcheck")) factCheckService.refresh().catch(() => {}); // PolitiFact index
+    if (settings.nostrEnabled !== false && !isOff("nostr")) nostrService.start().catch(() => {}); // stream Nostr notes for your topics
+    if (!isOff("prune")) setInterval(() => storage.pruneEphemeralPosts().catch(() => {}), 10 * 60 * 1000); // keep the RSS/Nostr cache bounded during long sessions
   }
   return { onboarded: !!me, settings };
 }
 
 /** Called right after onboarding finishes (identity just created). */
 export async function onOnboarded() {
-  await communityService.seedDefaults();
-  gunService.start();
-  peerService.start();
-  rssService.seedDefaults().catch(() => {}); // feed loads from the mesh (relay-seeded Gun), not a client refetch
-  changelogService.refresh().catch(() => {});
-  nostrService.start().catch(() => {}); // stream Nostr notes (on by default for new accounts)
+  if (!isOff("communities")) await communityService.seedDefaults();
+  if (!isOff("gun")) gunService.start();
+  if (!isOff("peer")) peerService.start();
+  if (!isOff("rss")) rssService.seedDefaults().catch(() => {}); // feed loads from the mesh (relay-seeded Gun), not a client refetch
+  if (!isOff("changelog")) changelogService.refresh().catch(() => {});
+  if (!isOff("nostr")) nostrService.start().catch(() => {}); // stream Nostr notes (on by default for new accounts)
 }
 
 // Earlier builds seeded sample posts; strip them so the feed only ever shows

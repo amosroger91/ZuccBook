@@ -4,6 +4,7 @@ import { Box, Snackbar, Alert } from "@mui/material";
 import { boot } from "@/services";
 import { useStore } from "@/store/useStore";
 import { bus } from "@/lib/events";
+import { isOff } from "@/lib/flags";
 import { presenceService } from "@/services/presenceService";
 import { identityService } from "@/services/identityService";
 import { DEFAULT_SETTINGS } from "@/services/storage";
@@ -58,7 +59,7 @@ export default function App() {
 
   return (
     <Box sx={{ minHeight: "100vh", position: "relative" }}>
-      <Background />
+      {!isOff("background") && <Background />}
       {/* AiSplash removed: WebLLM now loads on demand (not on boot), so a launch-time
           download overlay would just cover the app for its 30s safety timeout. */}
       {ready && deviceLink && <DeviceLinkReceiver code={deviceLink.code} secret={deviceLink.secret} />}
@@ -84,13 +85,17 @@ export default function App() {
           </Routes>
         </AppShell>
       )}
-      {ready && onboarded && <GlobalWatchPlayer />}
-      {ready && onboarded && <GlobalFeedVideo />}
-      {ready && onboarded && <GlobalSpotify />}
-      {ready && onboarded && <MiniPlayer />}
-      {ready && onboarded && <AudioMiniPlayer />}
-      {ready && onboarded && <FloatingDocks />}
-      {ready && onboarded && <GeoConsent />}
+      {ready && onboarded && !isOff("players") && (
+        <>
+          <GlobalWatchPlayer />
+          <GlobalFeedVideo />
+          <GlobalSpotify />
+          <MiniPlayer />
+          <AudioMiniPlayer />
+          <FloatingDocks />
+          <GeoConsent />
+        </>
+      )}
       <Snackbar
         open={!!notify}
         autoHideDuration={4000}
