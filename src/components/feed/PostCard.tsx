@@ -25,6 +25,7 @@ import ReportProblemRoundedIcon from "@mui/icons-material/ReportProblemRounded";
 import TranslateRoundedIcon from "@mui/icons-material/TranslateRounded";
 import { translateService, langName, probablyNotEnglish } from "@/services/translateService";
 import { emojify } from "@/lib/emoticons";
+import { isOff } from "@/lib/flags";
 import { decodeEntities } from "@/lib/htmlEntities";
 import { compressPostImage } from "@/lib/image";
 import { nsfwService } from "@/services/nsfwService";
@@ -424,7 +425,7 @@ function PostText({ text, censor, rich }: { text: string; censor: boolean; rich?
           ...(clamp ? { maxHeight: COLLAPSED_MAX, overflow: "hidden", maskImage: fade, WebkitMaskImage: fade } : {}),
         }}
       >
-        {rich ? renderRichText(shownBody, censor) : renderText(shownBody, censor)}
+        {isOff("body") ? null : rich ? renderRichText(shownBody, censor) : renderText(shownBody, censor)}
       </Typography>
       <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flexWrap: "wrap" }}>
         {long && (
@@ -747,9 +748,9 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
           {(!gated || revealed) && (<>
           {post.text && <PostText text={post.text} censor={censorProfanity} rich={post.source === "nostr"} />}
 
-          {post.html && <HtmlCard html={post.html} />}
+          {!isOff("embeds") && post.html && <HtmlCard html={post.html} />}
 
-          {(() => {
+          {!isOff("embeds") && (() => {
             const ytId = firstYouTube(post.text ?? "");
             const spotify = ytId ? null : firstSpotify(post.text ?? "");
             const tiktok = ytId || spotify ? null : firstTikTok(post.text ?? "");
