@@ -73,7 +73,11 @@ own. You are not the product. You are the owner.
 - **Chatrooms** — live peer-to-peer rooms: text chat, presence, reactions, image
   sharing, and **voice/video** (WebRTC mesh), all browser-to-browser through a free
   public broker.
-- **Direct & swarm messages** — DMs and a global "Swarm Lounge".
+- **Chat — Ledger Chat & Global Chat** — DMs plus two live rooms, each a one-tap
+  bubble that docks bottom-right and stays connected while minimized: **Ledger Chat**
+  (the in-app, Gun-backed lounge — formerly "Swarm Lounge"), and **Global Chat**, a
+  public **Nostr ([NIP-28](https://github.com/nostr-protocol/nips/blob/master/28.md))**
+  channel that anyone on the Nostr network shares with you — no server, no gateway.
 - **Watch & Listen Together** — internet radio *and* YouTube, with a **persistent
   mini-player** docked at the bottom of every screen (play/pause, station, volume).
 - **Topics & RSS Bot** — subscribe to topics and a bot keeps your feed alive even
@@ -87,7 +91,8 @@ own. You are not the product. You are the owner.
   You can **reply and react**, and because Ledger holds a Nostr keypair for you, those
   actually reach the real authors. **Sign in with your existing Nostr account** (paste
   your `nsec…` at sign-up) or get a fresh key automatically. Markdown-formatted and
-  foreign-language notes render cleanly, with one-tap **translate-to-English**.
+  foreign-language notes render cleanly, with one-tap **translate-to-English**. The
+  same Nostr key signs **Global Chat** — a public **NIP-28** channel (see above).
 - **Communities** — Discord/Reddit-style servers with text/voice/stage/event channels.
 - **Wallet & Market (Polygon)** — a self-custody Polygon wallet (send/receive MATIC
   & USDC) and a marketplace where buying pays the seller on-chain, peer-to-peer.
@@ -337,7 +342,7 @@ needs nothing else to run:
 - **WebLLM (WebGPU/WASM)** — the AI companion, cached locally after first download.
 - **IndexedDB + localStorage** — all your data, on your device, offline-first.
 - **[Gun.js](https://gun.eco/)** — a decentralized graph database that syncs over
-  public relay peers, so posts (human **and** RSS-Bot) and the public Swarm Lounge
+  public relay peers, so posts (human **and** RSS-Bot) and the public Ledger Chat
   **persist and reach people who were offline** — still with no database you own or pay for.
 - **[Nostr](https://nostr.com/)** — a raw-WebSocket client to public Nostr relays
   bridges the wider network into your feed: read verified notes, and publish signed

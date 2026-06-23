@@ -19,7 +19,7 @@ export default function TownSquareView() {
       </Box>
 
       <Divider sx={{ my: 1.5 }}>
-        <Typography variant="overline" color="text.secondary">Swarm Lounge &amp; DMs</Typography>
+        <Typography variant="overline" color="text.secondary">Ledger Chat &amp; DMs</Typography>
       </Divider>
 
       {/* The chat window — Swarm Lounge + DMs — takes the rest of the page below */}

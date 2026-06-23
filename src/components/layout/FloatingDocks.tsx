@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Box, Stack, Typography, IconButton, TextField, Avatar, Tooltip, Badge, CircularProgress } from "@mui/material";
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import ForumRoundedIcon from "@mui/icons-material/ForumRounded";
+import PublicRoundedIcon from "@mui/icons-material/PublicRounded";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import RemoveRoundedIcon from "@mui/icons-material/Remove";
@@ -10,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 import UserAvatar from "@/components/common/UserAvatar";
 import { companionService } from "@/services/companionService";
 import { joinChatroom } from "@/services/chatroomService";
+import { joinGlobalChat, myGlobalAuthor, type GlobalChatController } from "@/services/globalChatService";
 import { useStore } from "@/store/useStore";
 import { bus } from "@/lib/events";
 import { clockTime } from "@/lib/time";
@@ -87,7 +89,7 @@ function CompanionPanel({ intro, autoPrompt, onConsumed, onMin, onClose }: { int
   );
 }
 
-// --- Chatroom: a compact live Swarm Lounge that stays connected while docked ---
+// --- Ledger Chat: a compact live room (Gun-backed) that stays connected while docked ---
 function ChatroomPanel({ visible, onMin, onClose }: { visible: boolean; onMin: () => void; onClose: () => void }) {
   const nav = useNavigate();
   const me = useStore((s) => s.me);
@@ -117,7 +119,7 @@ function ChatroomPanel({ visible, onMin, onClose }: { visible: boolean; onMin: (
 
   return (
     <Box sx={{ ...PANEL_SX, display: visible ? "flex" : "none" }}>
-      <Header icon={<ForumRoundedIcon fontSize="small" />} title="Swarm Lounge" subtitle={`#lounge · ${status}`} onExpand={() => { onMin(); nav("/chatroom"); }} onMin={onMin} onClose={onClose} />
+      <Header icon={<ForumRoundedIcon fontSize="small" />} title="Ledger Chat" subtitle={`#lounge · ${status}`} onExpand={() => { onMin(); nav("/chatroom"); }} onMin={onMin} onClose={onClose} />
       <Box sx={{ flex: 1, overflowY: "auto", p: 1.25, display: "flex", flexDirection: "column", gap: 0.75 }}>
         {messages.length === 0 && <Typography color="text.secondary" variant="body2">No messages yet — say hi 👋</Typography>}
         {messages.map((m) => {
@@ -138,20 +140,77 @@ function ChatroomPanel({ visible, onMin, onClose }: { visible: boolean; onMin: (
         <div ref={endRef} />
       </Box>
       <Stack direction="row" spacing={0.5} sx={{ p: 1, borderTop: "1px solid var(--bl-line)" }}>
-        <TextField fullWidth size="small" value={input} placeholder="Message the lounge…" onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} />
+        <TextField fullWidth size="small" value={input} placeholder="Message Ledger Chat…" onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} />
         <IconButton color="primary" onClick={send}><SendRoundedIcon /></IconButton>
       </Stack>
     </Box>
   );
 }
 
-/** Bottom-right floating docks: chat with your Companion or the Swarm Lounge
- *  without leaving the feed. Each minimizes to a bubble and restores on tap;
- *  the chatroom stays connected while minimized so you don't miss messages. */
+// --- Global Chat: a public Nostr (NIP-28) channel anyone on Nostr can join ---
+function GlobalChatPanel({ visible, onMin, onClose }: { visible: boolean; onMin: () => void; onClose: () => void }) {
+  const nav = useNavigate();
+  const ctrl = useRef<GlobalChatController | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [mine, setMine] = useState("");   // my own "nostr:<hex>" author id
+  const [input, setInput] = useState("");
+  const [status, setStatus] = useState("connecting…");
+  const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let alive = true;
+    myGlobalAuthor().then((a) => { if (alive) setMine(a); });
+    const render = (m: ChatMessage) => setMessages((prev) => {
+      // Upsert against the live list (not an external Set — that breaks under StrictMode's
+      // double-mount; see GlobalChatView). Multi-relay copies + name upgrades update in place.
+      const i = prev.findIndex((x) => x.id === m.id);
+      if (i >= 0) { const next = prev.slice(); next[i] = { ...next[i], ...m }; return next; }
+      return [...prev, m].sort((a, b) => a.createdAt - b.createdAt).slice(-300);
+    });
+    ctrl.current = joinGlobalChat({ onStatus: setStatus, onChat: render });
+    return () => { alive = false; ctrl.current?.leave(); ctrl.current = null; };
+  }, []);
+  useEffect(() => { if (visible) endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, visible]);
+
+  function send() { const t = input.trim(); if (!t || !ctrl.current) return; ctrl.current.sendChat(t); setInput(""); }
+
+  return (
+    <Box sx={{ ...PANEL_SX, display: visible ? "flex" : "none" }}>
+      <Header icon={<PublicRoundedIcon fontSize="small" />} title="Global Chat" subtitle={`Nostr public chat · ${status}`} onExpand={() => { onMin(); nav("/global-chat"); }} onMin={onMin} onClose={onClose} />
+      <Box sx={{ flex: 1, overflowY: "auto", p: 1.25, display: "flex", flexDirection: "column", gap: 0.75 }}>
+        {messages.length === 0 && <Typography color="text.secondary" variant="body2">No messages yet — say hi to the world 🌍</Typography>}
+        {messages.map((m) => {
+          const isMine = m.author === mine;
+          return (
+            <Stack key={m.id} direction="row" spacing={0.75} justifyContent={isMine ? "flex-end" : "flex-start"}>
+              {!isMine && <UserAvatar pk={m.author} name={m.authorName} avatar={m.authorAvatar} size={24} />}
+              <Box sx={{ maxWidth: "78%", px: 1.1, py: 0.7, borderRadius: 2, background: isMine ? "linear-gradient(135deg,#3f97ff,#1668e0)" : "#fff", color: isMine ? "#fff" : "text.primary" }}>
+                {!isMine && <Typography variant="caption" sx={{ fontWeight: 700 }}>{m.authorName}</Typography>}
+                {m.text && <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{m.text}</Typography>}
+                <Typography variant="caption" sx={{ opacity: 0.6, display: "block" }}>{clockTime(m.createdAt)}</Typography>
+              </Box>
+            </Stack>
+          );
+        })}
+        <div ref={endRef} />
+      </Box>
+      <Stack direction="row" spacing={0.5} sx={{ p: 1, borderTop: "1px solid var(--bl-line)" }}>
+        <TextField fullWidth size="small" value={input} placeholder="Message the world…" onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} />
+        <IconButton color="primary" onClick={send}><SendRoundedIcon /></IconButton>
+      </Stack>
+    </Box>
+  );
+}
+
+/** Bottom-right floating docks: Global Chat (Nostr), Ledger Chat, and your
+ *  Companion — without leaving the feed. Each minimizes to a bubble and restores
+ *  on tap; the chat rooms stay connected while minimized so you don't miss messages. */
 export default function FloatingDocks() {
   const [companionOpen, setCompanionOpen] = useState(false);
   const [chatActive, setChatActive] = useState(false); // mounted + connected
   const [chatOpen, setChatOpen] = useState(false);      // panel expanded
+  const [globalActive, setGlobalActive] = useState(false); // Global Chat mounted + connected
+  const [globalOpen, setGlobalOpen] = useState(false);     // Global Chat panel expanded
   const [intro, setIntro] = useState(false);
   const [pending, setPending] = useState<string | null>(null); // a post asked the companion to comment
 
@@ -174,10 +233,15 @@ export default function FloatingDocks() {
     return () => { off(); clearTimeout(t); };
   }, []);
 
-  const openCompanion = () => { setCompanionOpen(true); setChatOpen(false); };
-  const openChat = () => { setChatActive(true); setChatOpen(true); setCompanionOpen(false); };
+  // Only one panel is visible at a time (they dock in the same corner), but Ledger
+  // Chat and Global Chat stay MOUNTED + connected while minimized so messages keep
+  // arriving in the background.
+  const openCompanion = () => { setCompanionOpen(true); setChatOpen(false); setGlobalOpen(false); };
+  const openChat = () => { setChatActive(true); setChatOpen(true); setCompanionOpen(false); setGlobalOpen(false); };
+  const openGlobal = () => { setGlobalActive(true); setGlobalOpen(true); setCompanionOpen(false); setChatOpen(false); };
   const toggleCompanion = () => (companionOpen ? setCompanionOpen(false) : openCompanion());
   const toggleChat = () => (chatOpen ? setChatOpen(false) : openChat());
+  const toggleGlobal = () => (globalOpen ? setGlobalOpen(false) : openGlobal());
 
   return (
     // Anchored to the bottom-right corner of the content. A flex column: the
@@ -186,7 +250,12 @@ export default function FloatingDocks() {
     // them back down into the same spot the panel occupied.
     <Box sx={{ position: "fixed", right: { xs: 14, md: 28 }, bottom: { xs: 14, md: 28 }, zIndex: 1290, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1.25, pointerEvents: "none" }}>
       <Stack direction="row" spacing={1.25} sx={{ pointerEvents: "auto" }}>
-        <Tooltip title={chatOpen ? "Hide Swarm Lounge" : "Swarm Lounge chat"} placement="top">
+        <Tooltip title={globalOpen ? "Hide Global Chat" : "Global Chat (public · Nostr)"} placement="top">
+          <Box onClick={toggleGlobal} sx={bubbleSx("linear-gradient(135deg,#2bb673,#159e63)")}>
+            <Badge color="error" variant="dot" invisible={!globalActive || globalOpen}><PublicRoundedIcon sx={{ color: "#fff" }} /></Badge>
+          </Box>
+        </Tooltip>
+        <Tooltip title={chatOpen ? "Hide Ledger Chat" : "Ledger Chat"} placement="top">
           <Box onClick={toggleChat} sx={bubbleSx("#7c5cff")}>
             <Badge color="error" variant="dot" invisible={!chatActive || chatOpen}><ForumRoundedIcon sx={{ color: "#fff" }} /></Badge>
           </Box>
@@ -200,6 +269,7 @@ export default function FloatingDocks() {
 
       {companionOpen && <CompanionPanel intro={intro} autoPrompt={pending} onConsumed={() => setPending(null)} onMin={() => setCompanionOpen(false)} onClose={() => setCompanionOpen(false)} />}
       {chatActive && <ChatroomPanel visible={chatOpen} onMin={() => setChatOpen(false)} onClose={() => { setChatActive(false); setChatOpen(false); }} />}
+      {globalActive && <GlobalChatPanel visible={globalOpen} onMin={() => setGlobalOpen(false)} onClose={() => { setGlobalActive(false); setGlobalOpen(false); }} />}
     </Box>
   );
 }

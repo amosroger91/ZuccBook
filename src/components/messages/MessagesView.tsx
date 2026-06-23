@@ -20,7 +20,7 @@ export default function MessagesView({ fullWidth }: { fullWidth?: boolean } = {}
   const [input, setInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
 
-  const channels = [{ id: "swarm", label: "🛰️ Swarm Lounge" }, ...presence.map((p) => ({ id: dmChannel(me?.publicKey ?? "", p.pk), label: p.username }))];
+  const channels = [{ id: "swarm", label: "🛰️ Ledger Chat" }, ...presence.map((p) => ({ id: dmChannel(me?.publicKey ?? "", p.pk), label: p.username }))];
 
   const load = useCallback(() => { storage.messages(channel).then(setMessages); }, [channel]);
   useEffect(() => { load(); }, [load]);
