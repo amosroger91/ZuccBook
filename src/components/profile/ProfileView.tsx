@@ -242,6 +242,9 @@ function ViewProfile({ pk }: { pk: string }) {
     setProfile(cached);
     setSnapshot(null);
     const off = bus.on("profile:update", (p) => { if (p.pk === pk) setProfile(p); });
+    // Pull their full profile from the graph ON DEMAND (profiles aren't streamed at
+    // boot anymore — that froze the feed). It arrives via profile:update above.
+    profileService.request(pk);
     // No full profile cached yet → reconstruct a snapshot from their posts so
     // the page still works; the real one fills in if/when it syncs.
     if (!cached) profileService.snapshot(pk).then(setSnapshot);

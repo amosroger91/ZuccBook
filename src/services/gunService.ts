@@ -19,7 +19,6 @@ import { profileService } from "./profileService";
 import { marketplaceService } from "./marketplaceService";
 import { trustService } from "./trustService";
 import { storage } from "./storage";
-import { diag } from "@/lib/diag";
 import type { ChatMessage, Post, Profile, Listing, TrustEdge } from "@/types";
 
 // Public Gun relay peers (best-effort; Gun also keeps a local copy and
@@ -55,18 +54,14 @@ async function drainPostQueue() {
   if (draining) return;
   draining = true;
   try {
-    let drained = 0;
     while (postQueue.length) {
       const batch: Post[] = [];
       for (const j of postQueue.splice(0, 12)) {
         try { batch.push(JSON.parse(j)); } catch { /* skip malformed */ }
       }
       if (batch.length) { try { await feedService.absorbMany(batch); } catch { /* keep draining */ } }
-      drained += batch.length;
-      if (drained % 120 === 0) diag(`drain: ${drained} absorbed, ${postQueue.length} queued`);
       await new Promise((r) => setTimeout(r, 0)); // yield — let rendering + input run between batches
     }
-    diag("drain: finished", drained);
   } finally { draining = false; }
 }
 function enqueuePost(json: string) {
@@ -99,6 +94,10 @@ class GunService {
       bus.on("post:publish", (p) => this.putPost(p));
       bus.on("swarm:publish", (m) => { seenSwarm.add(m.id); this.putSwarm(m); });
       bus.on("profile:publish", (p) => { try { gun?.get(ROOT).get("profiles").get(p.pk).put({ json: JSON.stringify(p) }); } catch {} });
+      // Fetch ONE profile on demand (when you open someone's page) instead of streaming
+      // all of them. The size guard skips an abusively-large node so a stray 110KB-header
+      // profile can't stall the page either.
+      bus.on("profile:request", (pk) => { try { gun?.get(ROOT).get("profiles").get(pk).once((d: any) => { if (d?.json && d.json.length <= 60000) { try { profileService.ingest(JSON.parse(d.json) as Profile); } catch {} } }); } catch {} });
       bus.on("market:publish", (l) => { try { gun?.get(ROOT).get("market").get(l.id).put({ json: JSON.stringify(l) }); } catch {} });
       bus.on("trust:publish", (e) => { try { gun?.get(ROOT).get("trust").get(`${e.from}|${e.to}|${e.community ?? ""}`).put({ json: JSON.stringify(e) }); } catch {} });
 
@@ -124,10 +123,11 @@ class GunService {
             bus.emit("chat:message", m);
           } catch {}
         });
-        // Public profiles → cache for viewing others' pages.
-        gun.get(ROOT).get("profiles").map().on((d: any) => {
-          if (d?.json) { try { profileService.ingest(JSON.parse(d.json) as Profile); } catch {} }
-        });
+        // Profiles are NOT streamed here. Eagerly pulling EVERY profile forced Gun to
+        // merge every node on boot, and a single profile carrying a big inline image
+        // (a 110KB base64 header) takes Gun ~2s to process — a handful of them pinned the
+        // main thread and froze the feed. Profiles now load ON DEMAND (profile:request,
+        // wired in start()) when you actually open someone's page.
         // Marketplace listings.
         gun.get(ROOT).get("market").map().on((d: any) => {
           if (d?.json) { try { marketplaceService.ingest(JSON.parse(d.json) as Listing); } catch {} }

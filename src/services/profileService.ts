@@ -16,8 +16,25 @@ import { storage } from "./storage";
 
 const cache = new Map<string, Profile>();
 
+/** Drop oversized inline fields (a big base64 header/html) before a profile goes on
+ *  the graph — those choke Gun and stall every peer that ingests them. Small profiles
+ *  pass through untouched; the full version stays in the owner's local cache. */
+function slimForGraph(p: Profile): Profile {
+  if (JSON.stringify(p).length <= 50000) return p;
+  let slim: Profile = { ...p, header: undefined, html: undefined };
+  if (JSON.stringify(slim).length > 50000) slim = { ...slim, avatar: undefined };
+  return slim;
+}
+
 class ProfileService {
   get(pk: string): Profile | null { return cache.get(pk) ?? null; }
+
+  /** Ask the graph for a peer's full profile ON DEMAND (when you open their page) —
+   *  profiles aren't streamed eagerly anymore (that froze boot). It arrives async via
+   *  profile:update; until then the cached/snapshot view shows. */
+  request(pk: string) {
+    if (pk && pk !== identityService.pk) bus.emit("profile:request", pk);
+  }
 
   /** Warm the in-memory cache from the durable store at boot, so peers' pages
    *  render instantly and work offline (before/without a fresh Gun sync). */
@@ -97,8 +114,15 @@ class ProfileService {
     const me = identityService.current;
     if (me) await signProfile(p, me.privateKeyJwk);
     cache.set(p.pk, p);
-    storage.putProfile(p);
-    bus.emit("profile:publish", p);
+    storage.putProfile(p);          // local cache/store keeps your FULL profile (your own view)
+    // Publish a SLIM copy to the graph. A profile node carrying a large inline image
+    // (a 110KB base64 header) chokes Gun's sync and stalls every peer that ingests it —
+    // that was the second feed-freeze. Strip the heavy fields and re-sign the slim copy
+    // so it still verifies; your full profile stays on this device. (Big images should
+    // travel as media refs, not inline — TODO.)
+    const slim = slimForGraph(p);
+    if (me && slim !== p) await signProfile(slim, me.privateKeyJwk);
+    bus.emit("profile:publish", slim);
   }
 }
 

@@ -14,6 +14,7 @@ export interface LedgerEvents {
   "post:publish": Post;          // persist a post to the durable graph (Gun)
   "swarm:publish": ChatMessage;  // persist a Swarm Lounge message
   "profile:publish": Profile;    // persist/sync my public profile
+  "profile:request": string;     // fetch a peer's full profile from the graph ON DEMAND (by pk)
   "profile:update": Profile;     // a peer's profile arrived
   "market:publish": Listing;     // persist/sync a marketplace listing
   "market:update": Listing;      // a listing arrived/changed
