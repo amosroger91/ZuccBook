@@ -386,11 +386,14 @@ class FeedService {
 
     // Sort by score, then newest-first as the tiebreaker.
     scored.sort((a, b) => b.score - a.score || b.p.createdAt - a.p.createdAt);
-    // Artificially balance the two timelines: interleave Ledger and Nostr posts
-    // 1:1 (each keeping its own ranked order) so the feed stays ~50/50 and you can
-    // never scroll through more than half of either source. If only one source has
-    // posts, it's shown in full (nothing to mix).
-    const ranked = balanceSources(scored.map((s) => s.p));
+    // Balance the two timelines ~50/50. Trending/Discovery keep their ranked order
+    // (a plain 1:1 source interleave). The timeline feeds — For You / Newest / Circle —
+    // use a TIME-COHERENT mix: 30-minute windows, 50/50 within each, with the busier
+    // source's surplus dropped in as a group, so a Ledger post is never shown next to a
+    // Nostr post from hours away.
+    const ranked = (algorithm === "trending" || algorithm === "discovery")
+      ? balanceSources(scored.map((s) => s.p))
+      : balanceByTime(scored.map((s) => s.p));
     diag(`generate: done (ranked ${ranked.length}, scored ${scored.length})`, Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - _t) + "ms");
     return { posts: ranked, reasons, verdicts, replies };
   }
@@ -418,6 +421,33 @@ function balanceSources(posts: Post[]): Post[] {
   // that's mostly one source (a fresh node's RSS mesh with only a handful of Nostr
   // notes) gets capped to 2×the smaller source and looks nearly empty.
   out.push(...ledger.slice(n), ...nostr.slice(n));
+  return out;
+}
+
+const SOURCE_WINDOW_MS = 30 * 60 * 1000; // keep mixed Ledger/Nostr posts within ~30 min of each other
+
+/** Time-coherent 50/50 mix. Walk both timelines newest-first in ~30-minute windows;
+ *  within each window interleave Ledger and Nostr 1:1, then drop the busier source's
+ *  surplus in as a GROUP — everything in a window is within 30 min, so a Ledger post is
+ *  never placed next to a Nostr post from hours away. When one source is sparse you get
+ *  balanced pairs where it exists and tidy groups of the other where it doesn't. Posts
+ *  move only in time, none are dropped; one source only → returned untouched. */
+function balanceByTime(posts: Post[]): Post[] {
+  const nostr = posts.filter((p) => p.source === "nostr").sort((a, b) => b.createdAt - a.createdAt);
+  const ledger = posts.filter((p) => p.source !== "nostr").sort((a, b) => b.createdAt - a.createdAt);
+  if (!nostr.length || !ledger.length) return posts;
+  const out: Post[] = [];
+  let li = 0, ni = 0;
+  while (li < ledger.length || ni < nostr.length) {
+    // The window spans 30 min back from the newest post left in either source.
+    const head = Math.max(li < ledger.length ? ledger[li].createdAt : -Infinity, ni < nostr.length ? nostr[ni].createdAt : -Infinity);
+    const floor = head - SOURCE_WINDOW_MS;
+    const lWin: Post[] = []; while (li < ledger.length && ledger[li].createdAt >= floor) lWin.push(ledger[li++]);
+    const nWin: Post[] = []; while (ni < nostr.length && nostr[ni].createdAt >= floor) nWin.push(nostr[ni++]);
+    const k = Math.min(lWin.length, nWin.length);
+    for (let i = 0; i < k; i++) out.push(lWin[i], nWin[i]);   // 50/50 within the window
+    out.push(...lWin.slice(k), ...nWin.slice(k));             // surplus of the busier source, grouped, still in-window
+  }
   return out;
 }
 
