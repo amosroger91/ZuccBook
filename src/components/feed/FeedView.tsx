@@ -40,6 +40,25 @@ const FILTERS: { id: ContentFilter; label: string }[] = [
   { id: "poll", label: "Polls" },
 ];
 
+// One sponsored slot is interleaved after every AD_EVERY posts (so no real post is
+// replaced). A-ADS is a privacy-respecting network — no cookies, no tracking,
+// crypto-paid — which fits the local-first ethos. Disable with ?off=ads.
+type FeedItem = { type: "post"; post: Post } | { type: "ad"; id: string };
+const AD_EVERY = 10;
+
+function AdUnit() {
+  return (
+    <Box sx={{ mb: 1.5 }}>
+      <GlassCard sx={{ p: 1 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", textAlign: "center", textTransform: "uppercase", letterSpacing: 0.6, fontSize: 10, mb: 0.5, opacity: 0.7 }}>Sponsored</Typography>
+        <Box component="iframe" data-aa="2445453" src="https://acceptable.a-ads.com/2445453/?size=Adaptive"
+          title="Sponsored" loading="lazy" referrerPolicy="no-referrer"
+          sx={{ border: 0, p: 0, width: "100%", height: 110, display: "block", overflow: "hidden", borderRadius: 1.5 }} />
+      </GlassCard>
+    </Box>
+  );
+}
+
 export default function FeedView() {
   const settings = useStore((s) => s.settings);
   const setSettings = useStore((s) => s.setSettings);
@@ -88,6 +107,21 @@ export default function FeedView() {
   // Latest `shown` for non-reactive handlers (e.g. deep-link focus below).
   const shownRef = useRef(shown);
   shownRef.current = shown;
+  // Interleave a sponsored slot after every AD_EVERY posts. Ads are keyed by ordinal
+  // (ad-0, ad-1…) so they keep their identity — and don't reload the iframe — as the
+  // feed reorders around them.
+  const adsOff = isOff("ads");
+  const feedItems = useMemo<FeedItem[]>(() => {
+    const out: FeedItem[] = [];
+    let adN = 0;
+    shown.forEach((p, i) => {
+      out.push({ type: "post", post: p });
+      if (!adsOff && (i + 1) % AD_EVERY === 0) out.push({ type: "ad", id: `ad-${adN++}` });
+    });
+    return out;
+  }, [shown, adsOff]);
+  const feedItemsRef = useRef(feedItems);
+  feedItemsRef.current = feedItems;
   // TRUE virtualization (TanStack Virtual): render only the cards in/near the viewport and
   // UNMOUNT the rest, so the DOM — and every card's effects (the NSFW image check, embeds,
   // link-preview fetches) — stays constant no matter how far you scroll. The list shares
@@ -112,12 +146,12 @@ export default function FeedView() {
     return () => ro.disconnect();
   }, [scrollEl, shown.length > 0]);
   const virtualizer = useVirtualizer({
-    count: shown.length,
+    count: feedItems.length,
     getScrollElement: () => scrollEl,
-    estimateSize: () => 480,        // a rough first guess; measureElement corrects each card's real height
+    estimateSize: (i) => (feedItems[i]?.type === "ad" ? 140 : 480), // rough first guess; measureElement corrects each
     overscan: 4,                    // a few extra cards above/below so fast scrolling never flashes blank
     scrollMargin,
-    getItemKey: (i) => shown[i]?.id ?? i,
+    getItemKey: (i) => { const it = feedItems[i]; return it ? (it.type === "ad" ? it.id : it.post.id) : i; },
   });
 
   // Build the ranked feed (pure — no state writes). Reused by the full refresh and
@@ -201,7 +235,7 @@ export default function FeedView() {
   useEffect(() => bus.on("focus:post", ({ postId }) => {
     // Virtualized feed: ask the virtualizer to scroll the row into view so it mounts,
     // then highlight it once it's in the DOM.
-    const idx = shownRef.current.findIndex((p) => p.id === postId);
+    const idx = feedItemsRef.current.findIndex((it) => it.type === "post" && it.post.id === postId);
     if (idx >= 0) virtualizer.scrollToIndex(idx, { align: "center" });
     let tries = 0;
     const tick = () => {
@@ -355,8 +389,8 @@ export default function FeedView() {
           // sits that far down the scroll (below the composer/controls).
           <Box ref={listRef} sx={{ position: "relative", width: "100%" }} style={{ height: virtualizer.getTotalSize() }}>
             {virtualizer.getVirtualItems().map((vi) => {
-              const p = shown[vi.index];
-              if (!p) return null;
+              const item = feedItems[vi.index];
+              if (!item) return null;
               return (
                 <Box
                   key={vi.key}
@@ -365,7 +399,9 @@ export default function FeedView() {
                   sx={{ position: "absolute", top: 0, left: 0, width: "100%" }}
                   style={{ transform: `translateY(${vi.start - virtualizer.options.scrollMargin}px)` }}
                 >
-                  <PostCard post={p} reason={reasons.get(p.id)} replies={replies.get(p.id) ?? []} replyMap={replies} verdict={verdicts.get(p.id)} />
+                  {item.type === "ad"
+                    ? <AdUnit />
+                    : <PostCard post={item.post} reason={reasons.get(item.post.id)} replies={replies.get(item.post.id) ?? []} replyMap={replies} verdict={verdicts.get(item.post.id)} />}
                 </Box>
               );
             })}
