@@ -47,12 +47,29 @@ type FeedItem = { type: "post"; post: Post } | { type: "ad"; id: string };
 const AD_EVERY = 10;
 
 function AdUnit() {
+  // A-ADS is on every ad-blocker list. PROBE an a-ads asset first (an <img> the blockers
+  // also kill): if it can't load — blocked, or hung past the timeout — render NOTHING so
+  // the whole slot disappears instead of leaving an empty "Sponsored" box. This is more
+  // robust than watching the iframe's onLoad (some blockers swap in about:blank, which
+  // fires onLoad). Only once a-ads is confirmed reachable do we mount the ad iframe.
+  const [reachable, setReachable] = useState<boolean | null>(null); // null = probing
+  useEffect(() => {
+    let alive = true;
+    const img = new Image();
+    const t = setTimeout(() => { if (alive) setReachable(false); }, 4000); // hung = treat as blocked
+    const done = (v: boolean) => { if (alive) { clearTimeout(t); setReachable(v); } };
+    img.onload = () => done(true);
+    img.onerror = () => done(false);
+    img.src = "https://ad.a-ads.com/assets/default_logo.svg?_=" + Math.random().toString(36).slice(2);
+    return () => { alive = false; clearTimeout(t); };
+  }, []);
+  if (!reachable) return null; // probing or blocked → the whole node is hidden
   return (
     <Box sx={{ mb: 1.5 }}>
       <GlassCard sx={{ p: 1 }}>
         <Typography variant="caption" color="text.secondary" sx={{ display: "block", textAlign: "center", textTransform: "uppercase", letterSpacing: 0.6, fontSize: 10, mb: 0.5, opacity: 0.7 }}>Sponsored</Typography>
         <Box component="iframe" data-aa="2445453" src="https://acceptable.a-ads.com/2445453/?size=Adaptive"
-          title="Sponsored" loading="lazy" referrerPolicy="no-referrer"
+          title="Sponsored" referrerPolicy="no-referrer"
           sx={{ border: 0, p: 0, width: "100%", height: 110, display: "block", overflow: "hidden", borderRadius: 1.5 }} />
       </GlassCard>
     </Box>
