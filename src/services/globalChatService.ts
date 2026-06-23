@@ -13,8 +13,12 @@ import { nostrService } from "./nostrService";
 import type { ChatMessage } from "@/types";
 
 // The kind-40 channel "Ledger Global Chat" (created + published once; see
-// ledger-e2e/create-channel.mjs). This id is the channel everyone subscribes to.
-export const GLOBAL_CHANNEL_ID = "da8cf122e5bc6ec9f8c301a799ff1e537d0b75256efcfae8241b2611fbe1a141";
+// ledger-e2e/create-channel.mjs). Everyone subscribes to this id. `?gc=<64-hex>`
+// overrides it — used by the e2e harness so tests post to a throwaway channel and
+// never pollute the real one.
+const DEFAULT_CHANNEL_ID = "05f7c17c1085d8c5ef1a09f001863ba83443ba2e5f1c928eb017c4e503f6735d";
+const channelOverride = (() => { try { const g = new URLSearchParams(location.search).get("gc"); return g && /^[0-9a-f]{64}$/i.test(g) ? g.toLowerCase() : null; } catch { return null; } })();
+export const GLOBAL_CHANNEL_ID = channelOverride || DEFAULT_CHANNEL_ID;
 
 const CHAT_RELAYS = ["wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net", "wss://nostr.mom"];
 const shortNpub = (pk: string) => { try { return nip19.npubEncode(pk).slice(0, 11) + "…"; } catch { return pk.slice(0, 8) + "…"; } };
