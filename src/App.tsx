@@ -31,6 +31,8 @@ import AudioMiniPlayer from "@/components/layout/AudioMiniPlayer";
 import GlobalWatchPlayer from "@/components/layout/GlobalWatchPlayer";
 import GlobalFeedVideo from "@/components/layout/GlobalFeedVideo";
 import ReloadGuardDialog from "@/components/layout/ReloadGuardDialog";
+import ImageLightbox from "@/components/layout/ImageLightbox";
+import PostView from "@/components/feed/PostView";
 import GlobalSpotify from "@/components/layout/GlobalSpotify";
 import FloatingDocks from "@/components/layout/FloatingDocks";
 import GeoConsent from "@/components/layout/GeoConsent";
@@ -70,6 +72,7 @@ export default function App() {
         <AppShell>
           <Routes>
             <Route path="/" element={<FeedView />} />
+            <Route path="/post/:id" element={<PostView />} />
             <Route path="/communities" element={<CommunitiesView />} />
             <Route path="/messages" element={<TownSquareView />} />
             <Route path="/chatroom" element={<TownSquareView />} />
@@ -88,6 +91,7 @@ export default function App() {
           </Routes>
         </AppShell>
       )}
+      {ready && onboarded && <ImageLightbox />}
       {ready && onboarded && !isOff("players") && (
         <>
           <GlobalWatchPlayer />

@@ -246,6 +246,19 @@ class FeedService {
     return (await storage.allPosts()).filter((p) => p.replyTo === postId).sort((a, b) => a.createdAt - b.createdAt);
   }
 
+  /** Full parent→children reply map across all posts — for thread / detail / profile views. */
+  async replyMap(): Promise<Map<string, Post[]>> {
+    const all = await storage.allPosts();
+    const m = new Map<string, Post[]>();
+    for (const p of all) if (p.replyTo) { const a = m.get(p.replyTo) ?? []; a.push(p); m.set(p.replyTo, a); }
+    for (const a of m.values()) a.sort((x, y) => x.createdAt - y.createdAt);
+    return m;
+  }
+  /** A person's top-level posts, newest first (for their profile page). */
+  async authorFeed(pk: string): Promise<Post[]> {
+    return (await storage.postsByAuthor(pk)).filter((p) => !p.replyTo).sort((a, b) => b.createdAt - a.createdAt);
+  }
+
   async open(post: Post) {
     if (post.embedding) { this.profile.learn(post.embedding, 0.5); this.persistProfile(); }
   }

@@ -16,13 +16,15 @@ import { reputationService, BADGES } from "@/services/reputationService";
 import { communityService } from "@/services/communityService";
 import { profileService } from "@/services/profileService";
 import { nostrService } from "@/services/nostrService";
+import { feedService } from "@/services/feedService";
 import { relayService } from "@/services/relayService";
 import { useStore } from "@/store/useStore";
 import UserAvatar from "@/components/common/UserAvatar";
+import PostCard from "@/components/feed/PostCard";
 import { compressAvatar, compressBanner } from "@/lib/image";
 import { fingerprint } from "@/lib/crypto";
 import { bus, toast } from "@/lib/events";
-import type { Profile } from "@/types";
+import type { Profile, Post } from "@/types";
 
 // New profiles start from this editable template — it shows off full control:
 // the whole page background, fonts, layout, even animation, are yours to change.
@@ -190,6 +192,37 @@ function ProfileDisplay({ profile, own, onEdit }: { profile: Profile; own?: bool
           <Box sx={{ mt: 0.5 }}><CustomHtml html={profile.html} /></Box>
         </GlassCard>
       )}
+
+      <AuthorPosts pk={profile.pk} />
+    </Box>
+  );
+}
+
+/** All of a person's posts on their profile. Local authors come from the store;
+ *  for an external Nostr user we fetch their recent notes from the relays. */
+function AuthorPosts({ pk }: { pk: string }) {
+  const [posts, setPosts] = useState<Post[] | null>(null);
+  const [replyMap, setReplyMap] = useState<Map<string, Post[]>>(new Map());
+  useEffect(() => {
+    let on = true;
+    const load = async () => {
+      const list = pk.startsWith("nostr:") ? await nostrService.notesBy(pk) : await feedService.authorFeed(pk);
+      if (!on) return;
+      setPosts(list);
+      const map = await feedService.replyMap();
+      if (on) setReplyMap(map);
+    };
+    setPosts(null);
+    load();
+    const off = bus.on("feed:updated", load);
+    return () => { on = false; off(); };
+  }, [pk]);
+  return (
+    <Box sx={{ mt: 2 }}>
+      <Typography variant="overline" color="text.secondary" sx={{ px: 0.5, display: "block", mb: 0.5 }}>Posts{posts ? ` · ${posts.length}` : ""}</Typography>
+      {posts === null ? <GlassCard><LinearProgress /></GlassCard>
+        : posts.length === 0 ? <GlassCard><Typography color="text.secondary">No posts yet.</Typography></GlassCard>
+          : posts.map((p) => <PostCard key={p.id} post={p} replies={replyMap.get(p.id) ?? []} replyMap={replyMap} />)}
     </Box>
   );
 }

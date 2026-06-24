@@ -284,7 +284,7 @@ export function SafeImage({ src, alt, sx }: { src: string; alt?: string; sx?: Sx
   const blurred = mode === "screen" && !revealed && status !== "ok";
   return (
     <Box sx={{ position: "relative", display: "inline-block", maxWidth: "100%", lineHeight: 0 }}>
-      <Box component="img" src={src} alt={alt} loading="lazy" sx={{ ...sx, filter: blurred ? "blur(26px)" : "none", transition: "filter .25s ease" }} />
+      <Box component="img" src={src} alt={alt} loading="lazy" onClick={() => { if (!blurred) bus.emit("lightbox:open", { src }); }} sx={{ ...sx, filter: blurred ? "blur(26px)" : "none", transition: "filter .25s ease", cursor: blurred ? "default" : "zoom-in" }} />
       {blurred && (
         <Box onClick={() => { if (status === "nsfw") setRevealed(true); }}
           sx={{ position: "absolute", inset: 0, borderRadius: 1.5, display: "grid", placeItems: "center", textAlign: "center", p: 1, color: "#fff", background: "rgba(0,0,0,0.32)", cursor: status === "nsfw" ? "pointer" : "default" }}>
@@ -638,7 +638,7 @@ function Hashtags({ tags }: { tags: string[] }) {
   );
 }
 
-export default function PostCard({ post, reason, replies = [], replyMap, verdict }: { post: Post; reason?: RecommendationReason; replies?: Post[]; replyMap?: Map<string, Post[]>; verdict?: ModerationVerdict }) {
+export default function PostCard({ post, reason, replies = [], replyMap, verdict, expanded }: { post: Post; reason?: RecommendationReason; replies?: Post[]; replyMap?: Map<string, Post[]>; verdict?: ModerationVerdict; expanded?: boolean }) {
   const me = useStore((s) => s.me);
   const mePk = me?.publicKey ?? "";
   const nsfwMode = useStore((s) => s.settings.nsfwMode);
@@ -647,7 +647,7 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
   const canVisit = !!post.author && post.author !== "rss-bot" && post.author !== "system" && !post.author.startsWith("demo_");
   const visit = () => canVisit && nav(`/u/${post.author}`);
   const [react, setReact] = useState<{ el: HTMLElement; id: string } | null>(null);
-  const [showReplies, setShowReplies] = useState(false);
+  const [showReplies, setShowReplies] = useState(!!expanded);
   const [revealed, setRevealed] = useState(false);
   const [authMenu, setAuthMenu] = useState<HTMLElement | null>(null);
   // When you mute/block/hide from this card, we collapse just THIS one in place
@@ -777,8 +777,8 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
                     : <Tooltip title="Unsigned (legacy post) — authorship not verified"><VerifiedRoundedIcon sx={{ fontSize: 15, color: "rgba(0,0,0,0.22)" }} /></Tooltip>}
                 {verdict && verdict.action !== "allow" && <ModInfo verdict={verdict} />}
               </Stack>
-              <Tooltip title={new Date(post.createdAt).toLocaleString()} placement="bottom-start">
-                <Typography component="span" variant="caption" color="text.secondary" sx={{ display: "inline-block", lineHeight: 1.3, fontSize: 12 }}>
+              <Tooltip title={`Open this post · ${new Date(post.createdAt).toLocaleString()}`} placement="bottom-start">
+                <Typography component="span" variant="caption" color="text.secondary" onClick={() => nav(`/post/${encodeURIComponent(post.id)}`)} sx={{ display: "inline-block", lineHeight: 1.3, fontSize: 12, cursor: "pointer", "&:hover": { textDecoration: "underline", color: "#1668e0" } }}>
                   {relativeTime(post.createdAt)}{post.author === "rss-bot" && post.tags[0] ? ` · #${post.tags[0]}` : ""}
                 </Typography>
               </Tooltip>

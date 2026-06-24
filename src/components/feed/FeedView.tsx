@@ -466,7 +466,8 @@ export default function FeedView() {
                 </Box>
               )}
               {digest.top && (Object.values(digest.top.reactions).some((v) => v.length)) && (
-                <Box sx={{ mt: 1.5, p: 1, borderRadius: 1.5, bgcolor: "rgba(0,0,0,0.03)" }}>
+                <Box onClick={() => digest.top && nav(`/post/${encodeURIComponent(digest.top.id)}`)} title="Open this post"
+                  sx={{ mt: 1.5, p: 1, borderRadius: 1.5, bgcolor: "rgba(0,0,0,0.03)", cursor: "pointer", transition: "background .15s ease", "&:hover": { bgcolor: "rgba(58,155,240,0.08)" } }}>
                   <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>🔥 Most-reacted</Typography>
                   <Typography variant="body2" sx={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", mt: 0.25 }}>
                     "{(digest.top.text ?? "").split("\n")[0].slice(0, 110)}" — {digest.top.authorName}

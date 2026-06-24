@@ -267,6 +267,17 @@ class NostrService {
   }
   npubFor(pk: string): string { try { return nip19.npubEncode(pk.replace(/^nostr:/, "")); } catch { return pk; } }
 
+  /** Fetch a Nostr user's recent notes (kind 1), ingest them into the feed, and
+   *  return their top-level posts — so their profile page can show everything. */
+  async notesBy(pk: string, limit = 60): Promise<Post[]> {
+    const pubkey = pk.replace(/^nostr:/, "");
+    try {
+      const evs = await this.queryOnce(RELAYS, { kinds: [1], authors: [pubkey], limit }, 8000);
+      for (const e of evs) await this.onNote(e);
+    } catch { /* offline / relay timeout — fall back to whatever's cached */ }
+    return (await storage.postsByAuthor("nostr:" + pubkey)).filter((p) => !p.replyTo).sort((a, b) => b.createdAt - a.createdAt);
+  }
+
   /** Search Nostr (NIP-50 / hashtag / npub) and ingest matches into the feed. */
   async search(q: string): Promise<number> {
     const query = q.trim();

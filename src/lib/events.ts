@@ -24,6 +24,7 @@ export interface LedgerEvents {
   "alert": { kind: Alert["kind"]; text: string; route: string; postId?: string };  // raise a clickable alert
   "alerts:updated": void;        // the alert list changed
   "focus:post": { postId: string };  // scroll to & highlight a post in the feed
+  "lightbox:open": { src: string };  // open an image full-screen
   "chat:message": ChatMessage;
   "chat:typing": { channel: string; pk: string };
   "presence:update": RichPresence;
