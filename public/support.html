@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Support Ledger</title>
+  <meta name="description" content="Ledger is free, open-source and uncensored. Here's how you can help keep it running." />
+  <link rel="icon" href="./favicon.ico" />
+  <style>
+    :root {
+      --bg0: #0a0f1a; --bg1: #0e1828; --line: rgba(255,255,255,0.09);
+      --card: rgba(255,255,255,0.035); --text: #e9eff7; --muted: #9fb0c3; --blue: #3a9bf0;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      min-height: 100vh; color: var(--text);
+      background: radial-gradient(1200px 600px at 50% -10%, #16243c 0%, var(--bg1) 40%, var(--bg0) 100%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased; line-height: 1.5;
+      display: flex; justify-content: center; padding: 32px 18px 64px;
+    }
+    .wrap { width: 100%; max-width: 620px; }
+    .brand { display: flex; align-items: center; gap: 12px; justify-content: center; margin-bottom: 8px; }
+    .brand img { width: 44px; height: 44px; border-radius: 12px; box-shadow: 0 0 22px rgba(58,155,240,.4); }
+    .brand h1 { font-size: 26px; margin: 0; letter-spacing: .2px; }
+    .tagline { text-align: center; color: var(--muted); margin: 4px 0 26px; font-size: 15px; }
+    .tagline b { color: var(--text); }
+    .card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+      padding: 18px 18px; margin: 0 0 14px;
+    }
+    .ad-card { padding: 14px 14px 16px; text-align: center; }
+    .ad-note { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .6px; margin: 0 0 10px; }
+    .row { display: flex; align-items: center; gap: 14px; }
+    .row .ic { font-size: 26px; line-height: 1; flex: 0 0 auto; width: 34px; text-align: center; }
+    .row .body { flex: 1 1 auto; min-width: 0; }
+    .row .body h3 { margin: 0 0 2px; font-size: 16px; }
+    .row .body p { margin: 0; color: var(--muted); font-size: 14px; }
+    a.btn {
+      display: inline-block; margin-top: 11px; text-decoration: none; font-weight: 700; font-size: 14px;
+      padding: 9px 16px; border-radius: 10px; transition: filter .15s ease, background .15s ease;
+    }
+    a.btn:hover { filter: brightness(1.08); }
+    .btn-gh { background: #1f2733; color: #fff; border: 1px solid #313c4b; }
+    .btn-blue { background: linear-gradient(135deg,#3f97ff,#1668e0); color: #fff; }
+    .btn-coffee { background: linear-gradient(135deg,#ffe08a,#ffce5a); color: #5a3a12; border: 1px solid #f6b73c; }
+    .foot { text-align: center; color: var(--muted); font-size: 13px; margin-top: 22px; }
+    .foot a { color: var(--blue); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">
+      <img src="./logo.png" alt="Ledger" />
+      <h1>Support Ledger</h1>
+    </div>
+    <p class="tagline">Ledger is <b>free, open-source, and uncensored</b> — no signups, no tracking, no gatekeepers. The only thing keeping it running is people like you.</p>
+
+    <!-- The ad. Visible to everyone who lands here; it's the only revenue. -->
+    <div class="card ad-card">
+      <p class="ad-note">A small ad — this is what keeps Ledger free</p>
+      <!-- BEGIN AADS AD UNIT 2445453 -->
+      <div id="frame" style="width: 100%;margin: auto;position: relative; z-index: 99998;">
+        <iframe data-aa='2445453' src='//acceptable.a-ads.com/2445453/?size=Adaptive'
+                style='border:0; padding:0; width:70%; height:auto; overflow:hidden;display: block;margin: auto'></iframe>
+      </div>
+      <!-- END AADS AD UNIT 2445453 -->
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div class="ic">⭐</div>
+        <div class="body">
+          <h3>Star it on GitHub</h3>
+          <p>Costs nothing, helps a lot — it's how more people find the project.</p>
+        </div>
+      </div>
+      <a class="btn btn-gh" href="https://github.com/amosroger91/Ledger" target="_blank" rel="noopener noreferrer">⭐ Star on GitHub</a>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div class="ic">📜</div>
+        <div class="body">
+          <h3>Just keep scrolling</h3>
+          <p>Every so often there's a single ad in your feed. That's the only revenue — so simply using Ledger already helps.</p>
+        </div>
+      </div>
+      <a class="btn btn-blue" href="./">Back to the feed</a>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div class="ic">☕</div>
+        <div class="body">
+          <h3>Buy me a coffee</h3>
+          <p>If Ledger's useful to you and you want to chip in directly, this keeps the lights on.</p>
+        </div>
+      </div>
+      <a class="btn btn-coffee" href="https://buymeacoffee.com/amosroger91" target="_blank" rel="noopener noreferrer">☕ Buy me a coffee</a>
+    </div>
+
+    <p class="foot">Thank you for being here. — <a href="./">Open Ledger</a></p>
+  </div>
+</body>
+</html>

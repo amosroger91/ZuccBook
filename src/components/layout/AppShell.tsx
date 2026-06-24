@@ -181,7 +181,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             funding is voluntary support for the developer. */}
         <Tooltip title={compact ? "Support the project" : ""} placement="right">
           <Box
-            component="a" href="https://buymeacoffee.com/amosroger91" target="_blank" rel="noopener noreferrer"
+            component="a" href={`${import.meta.env.BASE_URL}support.html`} target="_blank" rel="noopener noreferrer"
             sx={{
               display: "flex", alignItems: "center", gap: 1.5, px: { xs: 0.5, sm: 1.5 }, py: 1.1, borderRadius: 2, cursor: "pointer",
               textDecoration: "none", color: "#5a3a12",
