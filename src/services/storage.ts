@@ -223,4 +223,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   censorProfanity: false,
   nostrEnabled: true,
   autoTranslate: true,
+  showAds: true,
 };

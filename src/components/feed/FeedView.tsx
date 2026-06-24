@@ -6,6 +6,7 @@ import KeyboardArrowUpRoundedIcon from "@mui/icons-material/KeyboardArrowUpRound
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import ArrowDownwardRoundedIcon from "@mui/icons-material/ArrowDownwardRounded";
 import ClearRoundedIcon from "@mui/icons-material/ClearRounded";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import Composer from "./Composer";
 import PostCard from "./PostCard";
@@ -67,7 +68,15 @@ function AdUnit() {
   return (
     <Box sx={{ mb: 1.5 }}>
       <GlassCard sx={{ p: 1 }}>
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block", textAlign: "center", textTransform: "uppercase", letterSpacing: 0.6, fontSize: 10, mb: 0.5, opacity: 0.7 }}>Sponsored</Typography>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.5 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 0.6, fontSize: 10, opacity: 0.7 }}>Sponsored</Typography>
+          {/* Why am I seeing ads? → the Support page explains it (and how to turn them off). */}
+          <Box component="a" href={`${import.meta.env.BASE_URL}support.html`} target="_blank" rel="noopener noreferrer"
+            sx={{ display: "inline-flex", alignItems: "center", gap: 0.3, textDecoration: "none", color: "text.secondary", fontSize: 10, opacity: 0.7, lineHeight: 1, "&:hover": { opacity: 1, color: "primary.main" } }}>
+            <InfoOutlinedIcon sx={{ fontSize: 12 }} />
+            <Box component="span">Why am I seeing ads?</Box>
+          </Box>
+        </Box>
         <Box component="iframe" data-aa="2445453" src="https://acceptable.a-ads.com/2445453/?size=Adaptive"
           title="Sponsored" referrerPolicy="no-referrer"
           sx={{ border: 0, p: 0, width: "100%", height: 110, display: "block", overflow: "hidden", borderRadius: 1.5 }} />
@@ -127,7 +136,7 @@ export default function FeedView() {
   // Interleave a sponsored slot after every AD_EVERY posts. Ads are keyed by ordinal
   // (ad-0, ad-1…) so they keep their identity — and don't reload the iframe — as the
   // feed reorders around them.
-  const adsOff = isOff("ads");
+  const adsOff = isOff("ads") || settings.showAds === false; // user can turn ads off in Settings
   const feedItems = useMemo<FeedItem[]>(() => {
     const out: FeedItem[] = [];
     let adN = 0;

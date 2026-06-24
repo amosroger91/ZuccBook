@@ -306,4 +306,5 @@ export interface AppSettings {
   nostrEnabled: boolean;        // pull Nostr notes into the feed + publish replies/reactions
   autoTranslate: boolean;       // auto-translate non-English feed posts to English (on by default)
   autoTranslateInit?: boolean;  // one-time migration marker for the default-on flip
+  showAds: boolean;             // show the occasional A-ADS slot in the feed — how the project stays free (on by default)
 }

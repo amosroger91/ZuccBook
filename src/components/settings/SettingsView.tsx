@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Box, Stack, Typography, Select, MenuItem, Switch, FormControlLabel, Divider, Button } from "@mui/material";
+import { Box, Stack, Typography, Select, MenuItem, Switch, FormControlLabel, Divider, Button, Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
 import QrCode2RoundedIcon from "@mui/icons-material/QrCode2Rounded";
 import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
 import InstallMobileRoundedIcon from "@mui/icons-material/InstallMobileRounded";
@@ -27,6 +27,7 @@ export default function SettingsView() {
   const setSettings = useStore((s) => s.setSettings);
   const [deviceLogin, setDeviceLogin] = useState(false);
   const [install, setInstall] = useState(false);
+  const [adsDialog, setAdsDialog] = useState(false);
   const [restricted, setRestricted] = useState(() => trustService.myRestricted());
   const [hiddenCount, setHiddenCount] = useState(() => feedService.hiddenCount());
 
@@ -85,6 +86,9 @@ export default function SettingsView() {
         <Divider />
         {row("Auto-translate to English", "Automatically translate posts detected as another language into English, clearly labeled with a one-tap toggle back to the original. Off by default — you can still translate any post on demand from its text.",
           <Switch checked={settings.autoTranslate === true} onChange={(e) => { setSettings({ autoTranslate: e.target.checked }); toast(e.target.checked ? "Auto-translate on — non-English posts will translate to English" : "Auto-translate off", "info"); }} />)}
+        <Divider />
+        {row("Support with ads", "Ledger is free with no subscriptions — one small ad shows after every 10 posts (A-ADS: privacy-respecting, no tracking, no cookies). Leaving this on is how you keep the project free, at no cost to you.",
+          <Switch checked={settings.showAds !== false} onChange={(e) => { if (e.target.checked) { setSettings({ showAds: true }); toast("Thanks for keeping Ledger free 💛", "success"); } else { setAdsDialog(true); } }} />)}
       </GlassCard>
 
       <GlassCard sx={{ mb: 2 }}>
@@ -156,6 +160,25 @@ export default function SettingsView() {
           Reset this device
         </Button>
       </GlassCard>
+
+      {/* Confirm before turning ads off — the only thing that keeps Ledger free. */}
+      <Dialog open={adsDialog} onClose={() => setAdsDialog(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Turn off ads?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            Ledger is <b>free, open-source, and has no subscriptions</b> — the occasional ad in your feed (from A-ADS, which doesn't track you) is the only thing that keeps it running.
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
+            Turning them off is completely your call, but it does mean you're choosing not to support the project this way. You can turn them back on anytime, or help out in other ways.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ flexWrap: "wrap", gap: 1, px: 3, pb: 2 }}>
+          <Button component="a" href={`${import.meta.env.BASE_URL}support.html`} target="_blank" rel="noopener noreferrer" color="inherit">Other ways to help</Button>
+          <Box sx={{ flex: 1 }} />
+          <Button color="inherit" onClick={() => { setSettings({ showAds: false }); setAdsDialog(false); toast("Ads turned off", "info"); }}>Turn off anyway</Button>
+          <Button variant="contained" onClick={() => setAdsDialog(false)}>Keep ads on</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
