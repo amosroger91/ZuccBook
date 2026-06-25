@@ -263,7 +263,7 @@ export function LinkCard({ url }: { url: string }) {
 // by nsfwjs and kept blurred until it's cleared — or, if flagged, until the
 // viewer taps "view". The classification runs locally; the image never leaves
 // the device. With the filter off it's just a plain image.
-export function SafeImage({ src, alt, sx }: { src: string; alt?: string; sx?: SxProps<Theme> }) {
+export function SafeImage({ src, alt, sx, expand }: { src: string; alt?: string; sx?: SxProps<Theme>; expand?: boolean }) {
   const mode = useStore((s) => s.settings.nsfwMode);
   const active = mode !== "show";
   const [status, setStatus] = useState<"ok" | "checking" | "nsfw">(active ? "checking" : "ok");
@@ -281,6 +281,48 @@ export function SafeImage({ src, alt, sx }: { src: string; alt?: string; sx?: Sx
   // flashed before it's classified.
   if (mode === "hide" && status !== "ok") return null;
   const blurred = mode === "screen" && !revealed && status !== "ok";
+
+  if (expand) {
+    // Full-bleed variant: fills the card width edge-to-edge regardless of aspect ratio.
+    // Negative mx cancels the card's horizontal padding (xs: 1.5→12px, sm: 2→16px).
+    return (
+      <Box sx={{
+        position: "relative",
+        display: "block",
+        width: "auto",
+        mx: { xs: -1.5, sm: -2 },
+        lineHeight: 0,
+        mt: 1.5,
+        overflow: "hidden",
+        borderRadius: 0,
+      }}>
+        <Box
+          component="img" src={src} alt={alt} loading="lazy"
+          onClick={() => { if (!blurred) bus.emit("lightbox:open", { src }); }}
+          sx={{
+            display: "block",
+            width: "100%",
+            maxHeight: "min(70vh, 600px)",
+            objectFit: "contain",
+            bgcolor: "rgba(0,0,0,0.04)",
+            filter: blurred ? "blur(26px)" : "none",
+            transition: "filter .25s ease",
+            cursor: blurred ? "default" : "zoom-in",
+            ...sx,
+          }}
+        />
+        {blurred && (
+          <Box onClick={() => { if (status === "nsfw") setRevealed(true); }}
+            sx={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center", p: 1, color: "#fff", background: "rgba(0,0,0,0.32)", cursor: status === "nsfw" ? "pointer" : "default" }}>
+            {status === "checking"
+              ? <Typography variant="caption" sx={{ fontWeight: 700 }}>Scanning image…</Typography>
+              : <Box><Typography variant="caption" sx={{ fontWeight: 800, display: "block" }}>Sensitive content</Typography><Typography variant="caption" sx={{ opacity: 0.85 }}>Tap to view</Typography></Box>}
+          </Box>
+        )}
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ position: "relative", display: "inline-block", maxWidth: "100%", lineHeight: 0 }}>
       <Box component="img" src={src} alt={alt} loading="lazy" onClick={() => { if (!blurred) bus.emit("lightbox:open", { src }); }} sx={{ ...sx, filter: blurred ? "blur(26px)" : "none", transition: "filter .25s ease", cursor: blurred ? "default" : "zoom-in" }} />
@@ -897,7 +939,7 @@ export const PostCard = memo(function PostCard({ post, reason, replies = [], rep
             if (embed?.type === "spotify") return <SpotifyCard kind={embed.kind} id={embed.id} />;
             if (embed?.type === "tiktok") return <TikTokCard url={embed.url} />;
             if (embed?.type === "link") return <LinkCard url={embed.url} />;
-            return post.media?.map((m, i) => (m.type === "image" ? <SafeImage key={i} src={m.url} sx={{ mt: 1, maxWidth: "100%", maxHeight: 360, borderRadius: 2, border: "1px solid var(--bl-line)" }} /> : null));
+            return post.media?.map((m, i) => (m.type === "image" ? <SafeImage key={i} src={m.url} expand /> : null));
           })()}
 
           {post.media?.filter((m) => m.type === "audio").map((m, i) => <AudioCard key={i} url={m.url} title={m.alt || "Audio track"} />)}

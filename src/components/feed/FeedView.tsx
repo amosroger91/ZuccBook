@@ -326,7 +326,7 @@ export default function FeedView() {
   }, [doRefresh]);
 
   return (
-    <Box sx={{ display: "grid", gridTemplateColumns: compact ? "1fr" : "minmax(0, 1fr) clamp(260px, 24%, 340px)", gap: { xs: 2, md: 3 }, maxWidth: 1800, mx: "auto", px: { xs: 1, sm: 2, md: 0 } }}>
+    <Box sx={{ display: "grid", gridTemplateColumns: compact ? "1fr" : "minmax(0, 1fr) clamp(260px, 22%, 320px)", gap: { xs: 2, md: 3 }, maxWidth: 1100, mx: "auto", px: { xs: 0, sm: 0, md: 0 } }}>
       <Box sx={{ minWidth: 0 }}>
         {/* pull / scroll-to-refresh indicator */}
         {pull > 0 && (

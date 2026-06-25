@@ -234,7 +234,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <Box sx={{ position: "relative", zIndex: 1, height: "100vh", overflow: "hidden", p: { xs: 0, sm: 1, md: 2 } }}>
-    <Box sx={{ display: "grid", gridTemplateColumns: compact ? "1fr" : "230px 1fr", height: { xs: "100vh", md: "calc(100vh - 32px)" }, bgcolor: "var(--bl-face)", border: "1px solid var(--bl-edge-frame)", borderRadius: { xs: 0, md: "8px" }, overflow: "hidden", boxShadow: "0 12px 44px rgba(0,0,0,0.4)" }}>
+    <Box sx={{ display: "grid", gridTemplateColumns: compact ? "1fr" : "220px 1fr", height: { xs: "100vh", md: "calc(100vh - 32px)" }, bgcolor: "var(--bl-face)", border: "1px solid var(--bl-edge-frame)", borderRadius: { xs: 0, md: "8px" }, overflow: "hidden", boxShadow: "0 12px 44px rgba(0,0,0,0.4)" }}>
       {/* nav rail — full-height on desktop; on phones & tablets it collapses into a
           slide-out drawer (the hamburger in the title bar opens it) so the content
           column gets the full width. */}
@@ -269,7 +269,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </Tooltip>
         </Stack>
 
-        <Box id="app-scroll" sx={{ flex: 1, minHeight: 0, overflowY: "auto", p: { xs: 1.25, sm: 1.5, md: 3 }, pb: 12, "&::-webkit-scrollbar": { display: "none" }, scrollbarWidth: "none", msOverflowStyle: "none" }}>{children}</Box>
+        <Box id="app-scroll" sx={{ flex: 1, minHeight: 0, overflowY: "auto", py: { xs: 1.25, sm: 1.5, md: 3 }, px: { xs: 1.25, sm: 1.5, md: 2, xl: 3 }, pb: 12, "&::-webkit-scrollbar": { display: "none" }, scrollbarWidth: "none", msOverflowStyle: "none" }}>{children}</Box>
       </Box>
     </Box>
     </Box>
