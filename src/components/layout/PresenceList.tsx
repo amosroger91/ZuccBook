@@ -8,7 +8,7 @@ export default function PresenceList() {
   const presence = useStore((s) => s.presence);
 
   return (
-    <Box sx={{ px: 0.5, pb: 1, maxHeight: 260, overflowY: "auto" }}>
+    <Box sx={{ px: 0.5, pb: 1 }}>
       <Typography variant="caption" color="text.secondary" sx={{ px: 1, letterSpacing: "0.12em", textTransform: "uppercase" }}>
         On the network
       </Typography>

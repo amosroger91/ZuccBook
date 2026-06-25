@@ -804,12 +804,26 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
 
   return (
     <GlassCard id={`post-${post.id}`} sx={{ mb: 1.5, px: { xs: 1.5, sm: 2 }, py: "20px", scrollMarginTop: 70, transition: "box-shadow .25s ease, border-color .25s ease", "&:hover": { boxShadow: "0 4px 18px rgba(20,40,80,0.08)" }, "&.zb-focus": { boxShadow: "0 0 0 3px rgba(58,155,240,0.7)" } }}>
-      <Stack direction="row" spacing={1.25}>
-        <Box onClick={visit} sx={{ cursor: canVisit ? "pointer" : "default", flex: "0 0 auto" }}>
+      <Box sx={{
+        display: "grid",
+        gridTemplateColumns: "auto 1fr",
+        columnGap: 1.25,
+        rowGap: { xs: 0.5, sm: 0.25 }
+      }}>
+        <Box onClick={visit} sx={{
+          cursor: canVisit ? "pointer" : "default",
+          gridColumn: "1",
+          gridRow: { xs: "1", sm: "1 / span 2" },
+          alignSelf: { xs: "center", sm: "start" }
+        }}>
           <UserAvatar pk={post.author} name={post.authorName} avatar={post.authorAvatar} size={44} />
         </Box>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          {/* identity line — name + badge, with a muted meta subline underneath */}
+
+        <Box sx={{
+          gridColumn: "2",
+          gridRow: "1",
+          minWidth: 0
+        }}>
           <Stack direction="row" alignItems="flex-start" spacing={0.5}>
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Stack direction="row" alignItems="center" spacing={0.5}>
@@ -834,7 +848,14 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
             <WhyRecommended reason={reason} post={post} verdict={verdict} onBlock={() => trust("block")} />
             <IconButton size="small" sx={{ mt: -0.25, color: "text.disabled" }} onClick={(e) => setAuthMenu(e.currentTarget)}><MoreVertRoundedIcon fontSize="small" /></IconButton>
           </Stack>
+        </Box>
 
+        <Box sx={{
+          gridColumn: { xs: "1 / span 2", sm: "2" },
+          gridRow: "2",
+          minWidth: 0,
+          mt: { xs: 0.5, sm: 0 }
+        }}>
           {gated && !revealed && (restricted ? (
             <Box sx={{ mt: 1, p: 1.5, borderRadius: 1, bgcolor: "rgba(232,146,12,0.08)", border: "1px solid rgba(232,146,12,0.45)" }}>
               <Typography variant="body2"><b>{verdict!.action === "flag" ? "Flagged" : verdict!.action === "review" ? "Pending community review" : "Reduced"}</b> — {verdict!.reasoning}</Typography>
@@ -863,7 +884,6 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
             if (spotify) return <SpotifyCard kind={spotify.kind} id={spotify.id} />;
             if (tiktok) return <TikTokCard url={tiktok} />;
             if (linkUrl) return <LinkCard url={linkUrl} />;
-            // uploaded images (no link in text)
             return post.media?.map((m, i) => (m.type === "image" ? <SafeImage key={i} src={m.url} sx={{ mt: 1, maxWidth: "100%", maxHeight: 360, borderRadius: 2, border: "1px solid var(--bl-line)" }} /> : null));
           })()}
 
@@ -882,13 +902,10 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
             </Stack>
           )}
 
-          {/* hashtags — understated inline links, capped with a "show more" */}
           {post.author !== "rss-bot" && post.tags.length > 0 && <Hashtags tags={post.tags} />}
-
           </>)}
         </Box>
-      </Stack>
-
+      </Box>
       {/* full-width footer — reaction summary, action bar & comments span the whole card */}
       {(!gated || revealed) && (
         <Box sx={{ mt: 1 }}>

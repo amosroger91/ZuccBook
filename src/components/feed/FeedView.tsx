@@ -364,7 +364,7 @@ export default function FeedView() {
             </Select>
           </Stack>
         ) : (
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+          <Stack direction={{ xs: "column", lg: "row" }} spacing={1.5} alignItems={{ xs: "stretch", lg: "center" }} sx={{ mb: 2 }}>
             <Box sx={{ overflowX: "auto", WebkitOverflowScrolling: "touch", flexShrink: 0, mx: -0.5, px: 0.5, "& .MuiToggleButton-root": { whiteSpace: "nowrap" } }}>
               <ToggleButtonGroup
                 exclusive size="small" value={algo}
@@ -396,15 +396,19 @@ export default function FeedView() {
 
         {refreshing && (
           <GlassCard sx={{ mb: 1.5, p: 0, overflow: "hidden" }}>
-            <Stack direction="row" alignItems="center" spacing={1} sx={{ px: 2, py: 1 }}>
-              <CircularProgress size={16} />
+            <Stack direction="row" alignItems="flex-start" spacing={1.5} sx={{ px: 2, py: 1.5 }}>
+              <CircularProgress size={18} sx={{ flexShrink: 0, mt: 0.25 }} />
               <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography variant="body2" color="text.secondary">
-                  Fetching feeds the network needs{rssProg.total ? ` · ${rssProg.done}/${rssProg.total}` : "…"}{rssProg.posted ? ` · ${rssProg.posted} new` : ""}
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: "text.primary" }}>
+                    Fetching feeds the network needs{rssProg.total ? ` · ${rssProg.done}/${rssProg.total}` : "…"}{rssProg.posted ? ` · ${rssProg.posted} new` : ""}
+                  </Typography>
+                  <Chip size="small" label="live" sx={{ height: 18, fontSize: 10, bgcolor: "rgba(84,201,90,0.16)", color: "#54c95a", fontWeight: 700, border: "1px solid rgba(84,201,90,0.3)" }} />
+                </Stack>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", lineHeight: 1.4 }}>
+                  ⚡ Sharing your device's compute — pulling only the feeds you follow that nobody's refreshed in the last hour.
                 </Typography>
-                <Typography variant="caption" color="text.secondary">⚡ Sharing your device's compute — pulling only the feeds you follow that nobody's refreshed in the last hour.</Typography>
               </Box>
-              <Chip size="small" label="live" sx={{ height: 18, fontSize: 10, bgcolor: "rgba(84,201,90,0.16)", color: "#54c95a" }} />
             </Stack>
             <LinearProgress variant={rssProg.total ? "determinate" : "indeterminate"} value={rssProg.total ? (rssProg.done / rssProg.total) * 100 : undefined} sx={{ height: 3 }} />
           </GlassCard>

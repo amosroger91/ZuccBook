@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Box, Typography, Stack, Chip } from "@mui/material";
+import { Box, Typography, Stack, Chip, IconButton } from "@mui/material";
+import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import RemoveRoundedIcon from "@mui/icons-material/RemoveRounded";
+import RestartAltRoundedIcon from "@mui/icons-material/RestartAltRounded";
 import { storage } from "@/services/storage";
 import { presenceService } from "@/services/presenceService";
 import { identityService } from "@/services/identityService";
@@ -96,7 +99,20 @@ export default function NetworkView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const graphRef = useRef<Graph | null>(null);
   const mouse = useRef({ x: 0, y: 0, tx: 0, ty: 0 });
+  const zoom = useRef(1.0);
+  const pan = useRef({ x: 0, y: 0 });
   const [stats, setStats] = useState({ nodes: 0, online: 0, edges: 0, posts: 0 });
+
+  const handleZoomIn = () => {
+    zoom.current = Math.min(6.0, zoom.current * 1.25);
+  };
+  const handleZoomOut = () => {
+    zoom.current = Math.max(0.4, zoom.current / 1.25);
+  };
+  const handleReset = () => {
+    zoom.current = 1.0;
+    pan.current = { x: 0, y: 0 };
+  };
 
   // (re)build the graph from local data; debounced on feed/presence changes.
   useEffect(() => {
@@ -147,8 +163,93 @@ export default function NetworkView() {
     resize();
     const ro = new ResizeObserver(resize); ro.observe(canvas);
 
-    const onMove = (e: MouseEvent) => { const r = canvas.getBoundingClientRect(); mouse.current.tx = (e.clientX - r.left - W / 2) / W; mouse.current.ty = (e.clientY - r.top - H / 2) / H; };
-    canvas.addEventListener("mousemove", onMove);
+    let isDragging = false;
+    let startX = 0, startY = 0;
+    let startDist = 0;
+    let startZoom = 1;
+
+    const onStart = (clientX: number, clientY: number) => {
+      isDragging = true;
+      startX = clientX - pan.current.x;
+      startY = clientY - pan.current.y;
+    };
+
+    const onMoveUpdate = (clientX: number, clientY: number) => {
+      if (!isDragging) return;
+      pan.current.x = clientX - startX;
+      pan.current.y = clientY - startY;
+    };
+
+    const onEnd = () => { isDragging = false; };
+
+    const onMouseDown = (e: MouseEvent) => {
+      onStart(e.clientX, e.clientY);
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      const r = canvas.getBoundingClientRect();
+      mouse.current.tx = (e.clientX - r.left - W / 2) / W;
+      mouse.current.ty = (e.clientY - r.top - H / 2) / H;
+      if (isDragging) {
+        onMoveUpdate(e.clientX, e.clientY);
+      }
+    };
+
+    const onMouseUp = () => { onEnd(); };
+
+    const getTouchDist = (t: TouchList) => {
+      const dx = t[0].clientX - t[1].clientX;
+      const dy = t[0].clientY - t[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        e.preventDefault();
+        onStart(e.touches[0].clientX, e.touches[0].clientY);
+      } else if (e.touches.length === 2) {
+        e.preventDefault();
+        isDragging = false;
+        startDist = getTouchDist(e.touches);
+        startZoom = zoom.current;
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 1 && isDragging) {
+        e.preventDefault();
+        onMoveUpdate(e.touches[0].clientX, e.touches[0].clientY);
+      } else if (e.touches.length === 2 && startDist > 0) {
+        e.preventDefault();
+        const dist = getTouchDist(e.touches);
+        const factor = dist / startDist;
+        zoom.current = Math.max(0.4, Math.min(6.0, startZoom * factor));
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      startDist = 0;
+      if (e.touches.length === 1) {
+        onStart(e.touches[0].clientX, e.touches[0].clientY);
+      } else if (e.touches.length === 0) {
+        onEnd();
+      }
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const zoomFactor = 1.1;
+      const nextZoom = e.deltaY < 0 ? zoom.current * zoomFactor : zoom.current / zoomFactor;
+      zoom.current = Math.max(0.4, Math.min(6.0, nextZoom));
+    };
+
+    canvas.addEventListener("mousedown", onMouseDown);
+    canvas.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    canvas.addEventListener("touchstart", onTouchStart, { passive: false });
+    canvas.addEventListener("touchmove", onTouchMove, { passive: false });
+    canvas.addEventListener("touchend", onTouchEnd);
+    canvas.addEventListener("wheel", onWheel, { passive: false });
 
     const draw = (now: number) => {
       raf = requestAnimationFrame(draw);
@@ -160,9 +261,12 @@ export default function NetworkView() {
 
       mouse.current.x += (mouse.current.tx - mouse.current.x) * 0.04;
       mouse.current.y += (mouse.current.ty - mouse.current.y) * 0.04;
-      const cx = W / 2 + mouse.current.x * 60;
-      const cy = H / 2 + mouse.current.y * 60;
-      const maxR = Math.min(W, H) * 0.46;
+      const scale = zoom.current;
+      const px = pan.current.x;
+      const py = pan.current.y;
+      const cx = W / 2 + px + mouse.current.x * 60;
+      const cy = H / 2 + py + mouse.current.y * 60;
+      const maxR = Math.min(W, H) * 0.46 * scale;
       const theta = now * 0.00004;
       const spiral = 2.2;
       const squash = 0.86;
@@ -208,7 +312,7 @@ export default function NetworkView() {
         const on = real.online[i];
         ctx.globalAlpha = on ? 1 : 0.55;
         ctx.fillStyle = real.color[i];
-        const s = real.size[i] * (on ? 1.25 : 1);
+        const s = real.size[i] * (on ? 1.25 : 1) * Math.max(0.6, Math.min(2.5, Math.sqrt(scale)));
         if (rich && on) { ctx.globalAlpha = 0.18; ctx.beginPath(); ctx.arc(sx[i], sy[i], s * 3.2, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
         ctx.beginPath(); ctx.arc(sx[i], sy[i], s, 0, 7); ctx.fill();
       }
@@ -218,17 +322,27 @@ export default function NetworkView() {
       if (si >= 0) {
         ctx.globalAlpha = 1;
         ctx.strokeStyle = "#1668e0"; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(sx[si], sy[si], 9 + Math.sin(now * 0.004) * 1.8, 0, 7); ctx.stroke();
+        ctx.beginPath(); ctx.arc(sx[si], sy[si], (9 + Math.sin(now * 0.004) * 1.8) * Math.max(0.6, Math.min(2.5, Math.sqrt(scale))), 0, 7); ctx.stroke();
         ctx.fillStyle = "#0a55cf";
-        ctx.beginPath(); ctx.arc(sx[si], sy[si], 4.4, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx[si], sy[si], 4.4 * Math.max(0.6, Math.min(2.5, Math.sqrt(scale))), 0, 7); ctx.fill();
         ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.6;
-        ctx.beginPath(); ctx.arc(sx[si], sy[si], 4.4, 0, 7); ctx.stroke();
+        ctx.beginPath(); ctx.arc(sx[si], sy[si], 4.4 * Math.max(0.6, Math.min(2.5, Math.sqrt(scale))), 0, 7); ctx.stroke();
       }
       ctx.globalAlpha = 1;
     };
     raf = requestAnimationFrame(draw);
 
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); canvas.removeEventListener("mousemove", onMove); };
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      canvas.removeEventListener("mousedown", onMouseDown);
+      canvas.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      canvas.removeEventListener("touchstart", onTouchStart);
+      canvas.removeEventListener("touchmove", onTouchMove);
+      canvas.removeEventListener("touchend", onTouchEnd);
+      canvas.removeEventListener("wheel", onWheel);
+    };
   }, []);
 
   return (
@@ -259,6 +373,19 @@ export default function NetworkView() {
         <Legend color="#0a55cf" label="you" />
         <Legend color="#1668e0" label="online" />
         <Legend color="rgba(16,90,207,0.5)" label="seen" />
+      </Stack>
+
+      {/* zoom/pan controls */}
+      <Stack direction="row" spacing={1} sx={{ position: "absolute", bottom: { xs: 66, md: 82 }, right: { xs: 12, md: 18 }, zIndex: 10 }}>
+        <IconButton size="small" onClick={handleZoomIn} sx={{ bgcolor: "rgba(255,255,255,0.85)", color: "#1668e0", border: "1px solid rgba(58,155,240,0.4)", backdropFilter: "blur(4px)", "&:hover": { bgcolor: "rgba(255,255,255,0.95)" } }}>
+          <AddRoundedIcon fontSize="small" />
+        </IconButton>
+        <IconButton size="small" onClick={handleZoomOut} sx={{ bgcolor: "rgba(255,255,255,0.85)", color: "#1668e0", border: "1px solid rgba(58,155,240,0.4)", backdropFilter: "blur(4px)", "&:hover": { bgcolor: "rgba(255,255,255,0.95)" } }}>
+          <RemoveRoundedIcon fontSize="small" />
+        </IconButton>
+        <IconButton size="small" onClick={handleReset} sx={{ bgcolor: "rgba(255,255,255,0.85)", color: "#1668e0", border: "1px solid rgba(58,155,240,0.4)", backdropFilter: "blur(4px)", "&:hover": { bgcolor: "rgba(255,255,255,0.95)" } }}>
+          <RestartAltRoundedIcon fontSize="small" />
+        </IconButton>
       </Stack>
     </Box>
   );
