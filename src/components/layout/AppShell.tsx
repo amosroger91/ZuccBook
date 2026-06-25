@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Box, Stack, Typography, Tooltip, IconButton, Chip, Avatar, Divider, CircularProgress, Badge, Popover, Button, Drawer, useMediaQuery } from "@mui/material";
+import { Box, Stack, Typography, Tooltip, IconButton, Chip, Avatar, Divider, CircularProgress, Badge, Popover, Button, Drawer, useMediaQuery, Menu, MenuItem, ListItemIcon } from "@mui/material";
 import type { Theme } from "@mui/material";
 import NotificationsRoundedIcon from "@mui/icons-material/NotificationsRounded";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
@@ -119,26 +119,40 @@ function ModelStatusChip() {
   return null;
 }
 
-// Mobile: the three floating chat docks (Global / Ledger / Companion) ride in the
-// top bar instead of floating over the feed. We emit dock:toggle and mirror the
+// Mobile: the three floating chat docks (Global / Ledger / Companion) are now in a
+// single dropdown menu to save screen space. We emit dock:toggle and mirror the
 // open/active state that FloatingDocks broadcasts back (for the unread dots).
-function DockButtons() {
+function ChatDropdown() {
   const [st, setSt] = useState({ globalActive: false, chatActive: false, globalOpen: false, chatOpen: false, companionOpen: false });
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   useEffect(() => bus.on("dock:state", setSt), []);
-  const Btn = ({ which, title, icon, open, dot }: { which: "global" | "chat" | "companion"; title: string; icon: ReactNode; open: boolean; dot: boolean }) => (
-    <Tooltip title={title}>
-      <IconButton size="small" aria-label={title} onClick={() => bus.emit("dock:toggle", { which })}
-        sx={{ color: "#fff", bgcolor: open ? "rgba(255,255,255,0.24)" : "transparent", "&:hover": { bgcolor: "rgba(255,255,255,0.18)" } }}>
-        <Badge color="error" variant="dot" invisible={!dot}>{icon}</Badge>
-      </IconButton>
-    </Tooltip>
-  );
+  
+  const hasDot = (st.globalActive && !st.globalOpen) || (st.chatActive && !st.chatOpen);
+  
   return (
-    <Stack direction="row" spacing={0.25} sx={{ flexShrink: 0 }}>
-      <Btn which="global" title="Global Chat" icon={<PublicRoundedIcon fontSize="small" />} open={st.globalOpen} dot={st.globalActive && !st.globalOpen} />
-      <Btn which="chat" title="Ledger Chat" icon={<ForumRoundedIcon fontSize="small" />} open={st.chatOpen} dot={st.chatActive && !st.chatOpen} />
-      <Btn which="companion" title="Ask AI" icon={<AutoAwesomeRoundedIcon fontSize="small" />} open={st.companionOpen} dot={false} />
-    </Stack>
+    <>
+      <Tooltip title="Chats">
+        <IconButton size="small" onClick={(e) => setAnchor(e.currentTarget)} sx={{ color: "#fff" }}>
+          <Badge color="error" variant="dot" invisible={!hasDot}>
+            <ChatRoundedIcon fontSize="small" />
+          </Badge>
+        </IconButton>
+      </Tooltip>
+      <Menu open={!!anchor} anchorEl={anchor} onClose={() => setAnchor(null)} anchorOrigin={{ vertical: "bottom", horizontal: "right" }} transformOrigin={{ vertical: "top", horizontal: "right" }}>
+        <MenuItem onClick={() => { bus.emit("dock:toggle", { which: "global" }); setAnchor(null); }}>
+          <ListItemIcon><Badge color="error" variant="dot" invisible={!(st.globalActive && !st.globalOpen)}><PublicRoundedIcon fontSize="small" /></Badge></ListItemIcon>
+          Global Chat
+        </MenuItem>
+        <MenuItem onClick={() => { bus.emit("dock:toggle", { which: "chat" }); setAnchor(null); }}>
+          <ListItemIcon><Badge color="error" variant="dot" invisible={!(st.chatActive && !st.chatOpen)}><ForumRoundedIcon fontSize="small" /></Badge></ListItemIcon>
+          Ledger Chat
+        </MenuItem>
+        <MenuItem onClick={() => { bus.emit("dock:toggle", { which: "companion" }); setAnchor(null); }}>
+          <ListItemIcon><AutoAwesomeRoundedIcon fontSize="small" /></ListItemIcon>
+          Ask AI
+        </MenuItem>
+      </Menu>
+    </>
   );
 }
 
@@ -241,11 +255,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
         {/* Luna title bar */}
         <Stack direction="row" alignItems="center" spacing={{ xs: 0.75, sm: 1.5 }} sx={{ px: { xs: 1, sm: 2 }, py: 1, position: "sticky", top: 0, zIndex: 5, color: "#fff", borderBottom: "1px solid var(--bl-title-edge)", background: "var(--bl-gloss-title), linear-gradient(180deg, var(--bl-title-hi), var(--bl-title-low))", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.5)" }}>
           {compact && <IconButton onClick={() => setDrawerOpen(true)} aria-label="Open menu" sx={{ color: "#fff", ml: -0.75 }}><MenuRoundedIcon /></IconButton>}
-          {compact && <Box component="img" src={`${import.meta.env.BASE_URL}logo.png`} alt="Ledger" onClick={goHome} sx={{ width: 26, height: 26, borderRadius: "7px", cursor: "pointer", flexShrink: 0 }} />}
           <Typography variant="h6" sx={{ color: "#fff", textShadow: "0 1px 2px rgba(0,0,0,0.4)", display: { xs: "none", md: "block" }, whiteSpace: "nowrap", flex: { md: "0 0 auto" } }}>{NAV.find((n) => n.to === pathname)?.label ?? (pathname.startsWith("/chatroom") ? "Town Square" : "Ledger")}</Typography>
           <Box sx={{ flex: 1, display: "flex", justifyContent: compact ? "flex-end" : "flex-start" }}><GlobalSearch compact={compact} /></Box>
           <ModelStatusChip />
-          {compact && <DockButtons />}
+          {compact && <ChatDropdown />}
           <AlertsBell />
           <Chip size="small" label={`${onlineCount} online`} sx={{ display: { xs: "none", sm: "inline-flex" }, bgcolor: "rgba(255,255,255,0.92)", color: "var(--bl-green-600)", border: "none", "& .MuiChip-label": { fontWeight: 700 } }} icon={<Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "#4ca325", ml: 1 }} />} />
           <Tooltip title={me?.username ?? ""}>
@@ -256,7 +269,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </Tooltip>
         </Stack>
 
-        <Box id="app-scroll" sx={{ flex: 1, minHeight: 0, overflowY: "auto", p: { xs: 1.25, sm: 1.5, md: 3 }, pb: 12 }}>{children}</Box>
+        <Box id="app-scroll" sx={{ flex: 1, minHeight: 0, overflowY: "auto", p: { xs: 1.25, sm: 1.5, md: 3 }, pb: 12, "&::-webkit-scrollbar": { display: "none" }, scrollbarWidth: "none", msOverflowStyle: "none" }}>{children}</Box>
       </Box>
     </Box>
     </Box>
