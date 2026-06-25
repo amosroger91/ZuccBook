@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo, useRef, useLayoutEffect } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef, useLayoutEffect, memo } from "react";
 import { Box, ToggleButtonGroup, ToggleButton, Stack, Typography, Button, useMediaQuery, LinearProgress, Chip, CircularProgress, Avatar, Select, MenuItem } from "@mui/material";
 import FilterListRoundedIcon from "@mui/icons-material/FilterListRounded";
 import type { Theme } from "@mui/material";
@@ -48,7 +48,9 @@ const FILTERS: { id: ContentFilter; label: string }[] = [
 type FeedItem = { type: "post"; post: Post } | { type: "ad"; id: string };
 const AD_EVERY = 10;
 
-function AdUnit() {
+const EMPTY_REPLIES: Post[] = [];
+
+const AdUnit = memo(function AdUnit() {
   // A-ADS is on every ad-blocker list. PROBE an a-ads asset first (an <img> the blockers
   // also kill): if it can't load — blocked, or hung past the timeout — render NOTHING so
   // the whole slot disappears instead of leaving an empty "Sponsored" box. This is more
@@ -84,7 +86,7 @@ function AdUnit() {
       </GlassCard>
     </Box>
   );
-}
+});
 
 export default function FeedView() {
   const settings = useStore((s) => s.settings);
@@ -453,7 +455,7 @@ export default function FeedView() {
                 >
                   {item.type === "ad"
                     ? <AdUnit />
-                    : <PostCard post={item.post} reason={reasons.get(item.post.id)} replies={replies.get(item.post.id) ?? []} replyMap={replies} verdict={verdicts.get(item.post.id)} />}
+                    : <PostCard post={item.post} reason={reasons.get(item.post.id)} replies={replies.get(item.post.id) ?? EMPTY_REPLIES} replyMap={replies} verdict={verdicts.get(item.post.id)} />}
                 </Box>
               );
             })}

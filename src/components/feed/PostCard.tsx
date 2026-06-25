@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, Fragment, type ReactNode } from "react";
+import { useState, useEffect, useRef, useMemo, Fragment, memo, type ReactNode } from "react";
 import { Stack, Box, Typography, IconButton, Chip, Popover, Tooltip, TextField, Button } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material";
 import AddReactionRoundedIcon from "@mui/icons-material/AddReactionRounded";
@@ -453,7 +453,7 @@ export function renderBody(text: string, censor: boolean, rich: boolean): ReactN
 // with any card background). Short posts render exactly as before, no button.
 const LONG_THRESHOLD = 900;       // chars — "super super long"
 const COLLAPSED_MAX = 340;        // px
-function PostText({ text, censor, rich }: { text: string; censor: boolean; rich?: boolean }) {
+const PostText = memo(function PostText({ text, censor, rich }: { text: string; censor: boolean; rich?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const autoTranslate = useStore((s) => s.settings.autoTranslate);
 
@@ -545,7 +545,7 @@ function PostText({ text, censor, rich }: { text: string; censor: boolean; rich?
       </Stack>
     </Box>
   );
-}
+});
 
 // A reply composer (text + image + GIF) reused at every nesting level.
 function ReplyComposer({ parentId, placeholder, autoFocus, onPosted }: { parentId: string; placeholder: string; autoFocus?: boolean; onPosted?: () => void }) {
@@ -686,7 +686,9 @@ function Hashtags({ tags }: { tags: string[] }) {
   );
 }
 
-export default function PostCard({ post, reason, replies = [], replyMap, verdict, expanded }: { post: Post; reason?: RecommendationReason; replies?: Post[]; replyMap?: Map<string, Post[]>; verdict?: ModerationVerdict; expanded?: boolean }) {
+const EMPTY_MAP = new Map<string, Post[]>();
+
+export const PostCard = memo(function PostCard({ post, reason, replies = [], replyMap, verdict, expanded }: { post: Post; reason?: RecommendationReason; replies?: Post[]; replyMap?: Map<string, Post[]>; verdict?: ModerationVerdict; expanded?: boolean }) {
   const me = useStore((s) => s.me);
   const mePk = me?.publicKey ?? "";
   const nsfwMode = useStore((s) => s.settings.nsfwMode);
@@ -707,14 +709,28 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
   // On-device adult-content gate for explicit *text*. Images self-gate via
   // <SafeImage>. When either trips (and the post isn't already restricted by the
   // moderation layer) the body is hidden behind a "Show anyway" reveal.
-  const textFlag = nsfwService.isAdultText(post.text);
+  const textFlag = useMemo(() => nsfwService.isAdultText(post.text), [post.text]);
   // "Hide" mode removes flagged posts from the feed entirely (in feedService) — no
   // placeholder here. "Screen" (nsfw) gates the explicit body behind a reveal.
   const textNsfw = nsfwMode === "screen" && textFlag;
   const gated = restricted || textNsfw;
   // "Screen" (profanity) masks cuss words inline (f**k); hide/show leave text as-is.
   const censorProfanity = profanityMode === "screen";
-  const childMap = replyMap ?? new Map<string, Post[]>();
+  const childMap = replyMap ?? EMPTY_MAP;
+
+  const embed = useMemo(() => {
+    if (isOff("embeds")) return null;
+    const txt = post.text ?? "";
+    const ytId = firstYouTube(txt);
+    if (ytId) return { type: "youtube" as const, id: ytId };
+    const spotify = firstSpotify(txt);
+    if (spotify) return { type: "spotify" as const, kind: spotify.kind, id: spotify.id };
+    const tiktok = firstTikTok(txt);
+    if (tiktok) return { type: "tiktok" as const, url: tiktok };
+    const linkUrl = firstLink(txt);
+    if (linkUrl) return { type: "link" as const, url: linkUrl };
+    return null;
+  }, [post.text]);
 
   // User-triggered fact-check: purely algorithmic, on-device. We extract the
   // post's salient terms and rank PolitiFact's recent claims by IDF-weighted
@@ -876,14 +892,10 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
           {!isOff("embeds") && post.html && <HtmlCard html={post.html} />}
 
           {!isOff("embeds") && (() => {
-            const ytId = firstYouTube(post.text ?? "");
-            const spotify = ytId ? null : firstSpotify(post.text ?? "");
-            const tiktok = ytId || spotify ? null : firstTikTok(post.text ?? "");
-            const linkUrl = ytId || spotify || tiktok ? null : firstLink(post.text ?? "");
-            if (ytId) return <YouTubeCard id={ytId} />;
-            if (spotify) return <SpotifyCard kind={spotify.kind} id={spotify.id} />;
-            if (tiktok) return <TikTokCard url={tiktok} />;
-            if (linkUrl) return <LinkCard url={linkUrl} />;
+            if (embed?.type === "youtube") return <YouTubeCard id={embed.id} />;
+            if (embed?.type === "spotify") return <SpotifyCard kind={embed.kind} id={embed.id} />;
+            if (embed?.type === "tiktok") return <TikTokCard url={embed.url} />;
+            if (embed?.type === "link") return <LinkCard url={embed.url} />;
             return post.media?.map((m, i) => (m.type === "image" ? <SafeImage key={i} src={m.url} sx={{ mt: 1, maxWidth: "100%", maxHeight: 360, borderRadius: 2, border: "1px solid var(--bl-line)" }} /> : null));
           })()}
 
@@ -974,4 +986,6 @@ export default function PostCard({ post, reason, replies = [], replyMap, verdict
       </Popover>
     </GlassCard>
   );
-}
+});
+
+export default PostCard;

@@ -9,6 +9,8 @@ import { storage } from "@/services/storage";
 import { bus } from "@/lib/events";
 import type { Post } from "@/types";
 
+const EMPTY_REPLIES: Post[] = [];
+
 /** A single post on its own page (#/post/:id) — direct-linkable, with every
  *  comment expanded. Built from the local store; refreshes as replies arrive. */
 export default function PostView() {
@@ -37,7 +39,7 @@ export default function PostView() {
       <Button startIcon={<ArrowBackRoundedIcon />} onClick={() => nav(-1)} sx={{ mb: 1.5, textTransform: "none", color: "text.secondary" }}>Back</Button>
       {post === undefined ? <GlassCard><LinearProgress /></GlassCard>
         : post === null ? <GlassCard><Typography color="text.secondary">This post isn't on this device — it may not have synced yet, or the link is old.</Typography></GlassCard>
-          : <PostCard post={post} replies={replyMap.get(post.id) ?? []} replyMap={replyMap} expanded />}
+          : <PostCard post={post} replies={replyMap.get(post.id) ?? EMPTY_REPLIES} replyMap={replyMap} expanded />}
     </Box>
   );
 }
