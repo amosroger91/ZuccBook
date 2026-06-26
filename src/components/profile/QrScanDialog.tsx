@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Box, Typography, Alert, TextField, Stack } from "@mui/material";
 import jsQR from "jsqr";
-import { parseLink } from "@/services/deviceTransferService";
+import { parseLink } from "@/services/deviceLink";
 
 // Scans the QR shown by an already-signed-in device ("Log in on another
 // device"). Uses the native BarcodeDetector when available, else jsQR on a

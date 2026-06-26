@@ -19,6 +19,11 @@ import { Peer, type DataConnection } from "peerjs";
 import { identityService } from "./identityService";
 import { bufToB64url } from "@/lib/crypto";
 import type { SecretIdentity } from "@/types";
+// Pure URL helpers live in deviceLink (no peerjs) so the app shell can parse
+// the pairing link without pulling this module's WebRTC stack into the entry.
+// Imported (used by HostHandle.link below) AND re-exported for existing consumers.
+import { buildLink, parseLink } from "./deviceLink";
+export { buildLink, parseLink };
 
 // Frozen link scheme — NOT brand text. Existing device-link QR codes/URLs
 // embed this prefix; renaming it breaks links already in the wild. Kept as-is
@@ -58,20 +63,6 @@ function makeSecret(): string {
   const a = new Uint8Array(18);
   crypto.getRandomValues(a);
   return bufToB64url(a.buffer);
-}
-
-/** The deep-link the QR encodes; parsed by the receiver in App. */
-export function buildLink(code: string, secret: string): string {
-  return `${location.origin}${location.pathname}#/link?c=${code}~${secret}`;
-}
-export function parseLink(hash: string): { code: string; secret: string } | null {
-  const m = hash.match(/^#\/link\?c=([^~]+)~(.+)$/);
-  if (!m) return null;
-  try {
-    return { code: decodeURIComponent(m[1]), secret: decodeURIComponent(m[2]) };
-  } catch {
-    return { code: m[1], secret: m[2] };
-  }
 }
 
 class DeviceTransferService {
