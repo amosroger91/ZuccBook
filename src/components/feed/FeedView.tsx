@@ -230,13 +230,15 @@ export default function FeedView() {
     setReasons(res.reasons); setVerdicts(res.verdicts); setReplies(res.replies);
   }, [generateFeed]);
 
-  // Reveal the held posts: adopt the latest ranking and jump to the top.
+  // Clicking the "N new posts" pill: jump all the way to the top of the app AND pull a
+  // fresh content update — a full re-rank of everything that's arrived (not just the
+  // snapshot held when the pill appeared). refresh() clears the pill (pendingRef +
+  // newCount); we scroll to the top up front and re-pin once the new feed has settled.
   const applyPending = useCallback(() => {
-    const res = pendingRef.current;
-    if (res) { setPosts(res.posts); setReasons(res.reasons); setVerdicts(res.verdicts); setReplies(res.replies); }
-    pendingRef.current = null; setNewCount(0);
-    document.getElementById("app-scroll")?.scrollTo({ top: 0, behavior: "smooth" });
-  }, []);
+    const el = document.getElementById("app-scroll");
+    el?.scrollTo({ top: 0, behavior: "smooth" });
+    refresh().then(() => el?.scrollTo({ top: 0 }));
+  }, [refresh]);
 
   // Full refresh on mount / algo / group change. Background bus updates use a leading
   // THROTTLE feeding the reconcile above: the first update after an idle gap applies
