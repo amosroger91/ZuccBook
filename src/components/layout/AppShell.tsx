@@ -126,6 +126,9 @@ function ChatDropdown() {
   const [st, setSt] = useState({ globalActive: false, chatActive: false, globalOpen: false, chatOpen: false, companionOpen: false });
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   useEffect(() => bus.on("dock:state", setSt), []);
+  // The Companion's full page IS /companion, so hide its dropdown entry there
+  // (parity with the desktop floating dock).
+  const onCompanionPage = useLocation().pathname === "/companion";
   
   const hasDot = (st.globalActive && !st.globalOpen) || (st.chatActive && !st.chatOpen);
   
@@ -147,10 +150,12 @@ function ChatDropdown() {
           <ListItemIcon><Badge color="error" variant="dot" invisible={!(st.chatActive && !st.chatOpen)}><ForumRoundedIcon fontSize="small" /></Badge></ListItemIcon>
           Ledger Chat
         </MenuItem>
-        <MenuItem onClick={() => { bus.emit("dock:toggle", { which: "companion" }); setAnchor(null); }}>
-          <ListItemIcon><AutoAwesomeRoundedIcon fontSize="small" /></ListItemIcon>
-          Ask AI
-        </MenuItem>
+        {!onCompanionPage && (
+          <MenuItem onClick={() => { bus.emit("dock:toggle", { which: "companion" }); setAnchor(null); }}>
+            <ListItemIcon><AutoAwesomeRoundedIcon fontSize="small" /></ListItemIcon>
+            Ask AI
+          </MenuItem>
+        )}
       </Menu>
     </>
   );
