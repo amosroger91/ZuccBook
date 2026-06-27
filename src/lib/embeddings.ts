@@ -92,7 +92,7 @@ export function initEmbeddings(): Promise<void> {
       // Built by scripts/build-wasm.mjs into wasm/pkg (real wasm-pack output in
       // CI/Docker, or a throwing stub when the Rust toolchain is unavailable —
       // the stub's init() rejects, which we catch and fall back from).
-      const mod: any = await import("../../wasm/pkg/ledger_core.js");
+      const mod: any = await import("../../wasm/pkg/ledgr_core.js");
       await mod.default();
       wasm = mod as WasmCore;
     } catch {

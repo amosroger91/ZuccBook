@@ -26,21 +26,21 @@ const pkgDir = join(repoRoot, "wasm", "pkg");
 // where Smart App Control blocks native cargo builds). Never clobber it with a
 // stub just because wasm-pack can't run in the current environment.
 function haveRealPkg() {
-  return existsSync(join(pkgDir, "ledger_core_bg.wasm"));
+  return existsSync(join(pkgDir, "ledgr_core_bg.wasm"));
 }
 
 function writeStub(reason) {
   rmSync(pkgDir, { recursive: true, force: true });
   mkdirSync(pkgDir, { recursive: true });
   const throwing = (name) =>
-    `export function ${name}() { throw new Error("ledger-core wasm stub (not built)"); }`;
+    `export function ${name}() { throw new Error("ledgr-core wasm stub (not built)"); }`;
   writeFileSync(
-    join(pkgDir, "ledger_core.js"),
+    join(pkgDir, "ledgr_core.js"),
     [
-      "// AUTO-GENERATED STUB — the Rust/WASM ledger-core was not built.",
+      "// AUTO-GENERATED STUB — the Rust/WASM ledgr-core was not built.",
       `// Reason: ${reason}`,
       "// src/lib/embeddings.ts catches the init() rejection and uses its pure-TS fallback.",
-      'export default async function init() { throw new Error("ledger-core wasm stub (not built)"); }',
+      'export default async function init() { throw new Error("ledgr-core wasm stub (not built)"); }',
       throwing("embed"),
       throwing("embed_many"),
       throwing("cosine"),
@@ -50,7 +50,7 @@ function writeStub(reason) {
   );
   // Types so `tsc --noEmit` resolves the import even when only the stub exists.
   writeFileSync(
-    join(pkgDir, "ledger_core.d.ts"),
+    join(pkgDir, "ledgr_core.d.ts"),
     [
       "export default function init(): Promise<unknown>;",
       "export function embed(text: string): Float64Array;",
