@@ -82,7 +82,7 @@ function AlertsBell() {
             {alerts.length === 0 && <Typography color="text.secondary" sx={{ p: 2, textAlign: "center" }}>No alerts yet — replies, reactions and messages will show up here.</Typography>}
             {alerts.map((a) => (
               <Stack key={a.id} direction="row" spacing={1} alignItems="center" onClick={() => go(a)}
-                sx={{ px: 1.5, py: 1, cursor: "pointer", borderBottom: "1px solid var(--bl-line)", bgcolor: a.read ? "transparent" : "rgba(58,155,240,0.08)", "&:hover": { bgcolor: "rgba(58,155,240,0.14)" } }}>
+                sx={{ px: 1.5, py: 1, cursor: "pointer", borderBottom: "1px solid var(--bl-line)", bgcolor: a.read ? "transparent" : "var(--bl-accent-soft)", "&:hover": { bgcolor: "rgba(var(--bl-accent-rgb),0.14)" } }}>
                 <Box sx={{ fontSize: 18 }}>{ALERT_ICON[a.kind]}</Box>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography variant="body2" sx={{ fontWeight: a.read ? 400 : 700 }}>{a.text}</Typography>
@@ -108,8 +108,8 @@ function ModelStatusChip() {
     const pct = Math.round((st.progress ?? 0) * 100);
     return (
       <Tooltip title="Your private on-device AI is downloading — it's cached after the first time">
-        <Chip size="small" icon={<CircularProgress size={12} sx={{ color: "#1668e0 !important", ml: 0.5 }} variant={st.progress ? "determinate" : "indeterminate"} value={pct} />}
-          label={`AI ${pct}%`} sx={{ display: { xs: "none", sm: "inline-flex" }, bgcolor: "rgba(255,255,255,0.92)", color: "#1668e0", "& .MuiChip-label": { fontWeight: 700 } }} />
+        <Chip size="small" icon={<CircularProgress size={12} sx={{ color: "var(--bl-accent) !important", ml: 0.5 }} variant={st.progress ? "determinate" : "indeterminate"} value={pct} />}
+          label={`AI ${pct}%`} sx={{ display: { xs: "none", sm: "inline-flex" }, bgcolor: "var(--bl-face-raised)", color: "var(--bl-accent)", "& .MuiChip-label": { fontWeight: 700 } }} />
       </Tooltip>
     );
   }
@@ -187,8 +187,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
     <>
       <Stack direction="row" alignItems="center" spacing={1} onClick={goHome} role="button" aria-label="Go to home feed and scroll to top"
         sx={{ px: { xs: 0.5, sm: 1 }, py: 1.5, cursor: "pointer", borderRadius: 2, "&:hover": { opacity: 0.85 } }}>
-        <Box component="img" src={`${import.meta.env.BASE_URL}logo.png`} alt="Ledgr" sx={{ width: 30, height: 30, borderRadius: "8px", display: "block", boxShadow: "0 0 18px rgba(58,155,240,.35)", flexShrink: 0 }} />
-        {expanded && <Typography variant="h6" sx={{ background: "linear-gradient(90deg,#3f97ff,#1668e0)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>Ledgr</Typography>}
+        <Box component="img" src={`${import.meta.env.BASE_URL}logo.png`} alt="Ledgr" sx={{ width: 30, height: 30, borderRadius: "8px", display: "block", boxShadow: "0 0 18px rgba(var(--bl-accent-rgb),.25)", flexShrink: 0 }} />
+        {expanded && <Typography variant="h6" sx={{ background: "var(--bl-accent-gradient)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>Ledgr</Typography>}
       </Stack>
 
       {NAV.map((item) => {

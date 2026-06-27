@@ -631,12 +631,12 @@ export default function FeedView() {
       {!compact && (
         <Box sx={{ position: "sticky", top: 16, alignSelf: "start" }}>
           <GlassCard sx={{ p: 0, overflow: "hidden" }}>
-            <Stack direction="row" alignItems="center" spacing={1} sx={{ px: 1.5, py: 1.25, color: "#fff", background: "linear-gradient(135deg,#3f97ff,#1668e0,#0a55cf)" }}>
-              <Avatar sx={{ width: 30, height: 30, bgcolor: "rgba(255,255,255,0.22)" }}><AutoAwesomeRoundedIcon fontSize="small" /></Avatar>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ px: 1.5, py: 1.25, color: "#fff", background: "var(--bl-accent-gradient)" }}>
+              <Avatar sx={{ width: 30, height: 30, bgcolor: "rgba(255,255,255,0.2)" }}><AutoAwesomeRoundedIcon fontSize="small" /></Avatar>
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Typography sx={{ fontWeight: 800, fontSize: 14, lineHeight: 1.1 }}>Companion digest</Typography>
                 <Stack direction="row" alignItems="center" spacing={0.5}>
-                  <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#54ff7a" }} />
+                  <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "var(--bl-ok)" }} />
                   <Typography variant="caption" sx={{ opacity: 0.9 }}>on-device · live</Typography>
                 </Stack>
               </Box>
@@ -644,8 +644,8 @@ export default function FeedView() {
             <Box sx={{ p: 1.5 }}>
               <Stack direction="row" spacing={1}>
                 {[["Posts", digest.count], ["People", digest.people], ["Reactions", digest.reactions]].map(([label, value]) => (
-                  <Box key={label as string} sx={{ flex: 1, textAlign: "center", py: 0.85, borderRadius: 1.5, bgcolor: "rgba(58,155,240,0.07)" }}>
-                    <Typography sx={{ fontWeight: 800, fontSize: 18, lineHeight: 1, color: "#1668e0" }}>{value as number}</Typography>
+                  <Box key={label as string} sx={{ flex: 1, textAlign: "center", py: 0.85, borderRadius: 1.5, bgcolor: "var(--bl-accent-soft)" }}>
+                    <Typography sx={{ fontWeight: 800, fontSize: 18, lineHeight: 1, color: "var(--bl-accent)" }}>{value as number}</Typography>
                     <Typography variant="caption" color="text.secondary">{label as string}</Typography>
                   </Box>
                 ))}
@@ -654,14 +654,14 @@ export default function FeedView() {
                 <Box sx={{ mt: 1.5 }}>
                   <Typography variant="overline" color="text.secondary">Themes</Typography>
                   <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.25 }}>
-                    {digest.themes.map((t) => <Chip key={t} size="small" label={`#${t}`} sx={{ height: 22, bgcolor: "rgba(58,123,240,0.1)", color: "#1668e0", fontWeight: 600 }} />)}
+                    {digest.themes.map((t) => <Chip key={t} size="small" label={`#${t}`} sx={{ height: 22, bgcolor: "var(--bl-accent-soft)", color: "var(--bl-accent)", fontWeight: 600 }} />)}
                   </Box>
                 </Box>
               )}
               {digest.top && (Object.values(digest.top.reactions).some((v) => v.length)) && (
                 <Box onClick={() => digest.top && nav(`/post/${encodeURIComponent(digest.top.id)}`)} title="Open this post"
-                  sx={{ mt: 1.5, p: 1, borderRadius: 1.5, bgcolor: "rgba(0,0,0,0.03)", cursor: "pointer", transition: "background .15s ease", "&:hover": { bgcolor: "rgba(58,155,240,0.08)" } }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>🔥 Most-reacted</Typography>
+                  sx={{ mt: 1.5, p: 1, borderRadius: 1.5, bgcolor: "var(--bl-face-raised)", cursor: "pointer", transition: "background .15s ease", "&:hover": { bgcolor: "var(--bl-accent-soft)" } }}>
+                  <Typography variant="caption" color="var(--bl-accent)" sx={{ fontWeight: 700 }}>🔥 Most-reacted</Typography>
                   <Typography variant="body2" sx={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", mt: 0.25 }}>
                     "{(digest.top.text ?? "").split("\n")[0].slice(0, 110)}" — {digest.top.authorName}
                   </Typography>
