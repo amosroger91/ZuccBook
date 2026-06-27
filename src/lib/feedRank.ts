@@ -16,7 +16,7 @@ import { cosine } from "@/lib/embeddings";
 import { evaluateModeration } from "@/lib/moderationCore";
 import * as trust from "@/lib/trustMath";
 import { isAdultText } from "@/lib/textModeration";
-import { isBlockedAuthorName } from "@/lib/authorBlock";
+import { isBlockedAuthorName, isBlockedText } from "@/lib/authorBlock";
 
 export interface RankOpts {
   moderation: ModerationProfile;
@@ -55,12 +55,17 @@ export interface RankResult {
 
 export function rankFeed(recent: Post[], ctx: RankContext): RankResult {
   const { algorithm, opts, meId } = ctx;
-  // Drop spam-brand impersonators (e.g. "aéPiot") that flood the network under
-  // many throwaway identities: any post whose display name matches the blocklist
-  // is removed outright — top-level posts AND replies — before anything else runs.
-  // Not gated on source: the same spam arrives tagged nostr/relay/cache, and no
-  // legitimate account is named after the blocked brands.
-  recent = recent.filter((p) => !isBlockedAuthorName(p.authorName));
+  // Content safety screen — runs first, dropping posts outright (top-level AND
+  // replies), regardless of source. Catches: spam brands (e.g. "aéPiot") in the
+  // display name OR anywhere in the body/links/tags, and child-exploitation
+  // signals (coded terms + minor-indicator × explicit co-occurrence). The
+  // haystack folds in the text, poll question, tags and media URLs so a blocked
+  // term in a shared link can't slip through.
+  recent = recent.filter((p) => {
+    if (isBlockedAuthorName(p.authorName)) return false;
+    const hay = [p.text, p.authorName, p.poll?.question, ...(p.tags ?? []), ...((p.media ?? []).map((m) => m.url))].filter(Boolean).join(" ");
+    return !isBlockedText(hay);
+  });
   // Build the reply tree from the SAME bounded read (a reply is recent when its
   // parent is), so a refresh never has to scan the whole store a second time.
   const replies = new Map<string, Post[]>();
