@@ -130,7 +130,7 @@ export function rankFeed(recent: Post[], ctx: RankContext): RankResult {
   // Personal opt-out: hide RSS-Bot stories from topics you've muted in Topics.
   if (opts.mutedTopics?.length) {
     const muted = new Set(opts.mutedTopics);
-    posts = posts.filter((p) => p.author !== "rss-bot" || !(p.tags[0] && muted.has(p.tags[0])));
+    posts = posts.filter((p) => p.author !== "rss-bot" || !(p.tags?.[0] && muted.has(p.tags[0])));
   }
   // Per-feed opt-out: hide individual network feeds you've toggled off (by feed id).
   if (opts.mutedFeeds?.length) {
@@ -141,7 +141,7 @@ export function rankFeed(recent: Post[], ctx: RankContext): RankResult {
   // "For You" = real human activity + RSS Bot posts only from topics you subscribed to.
   if (algorithm === "ai-curated") {
     const subTags = new Set((opts.subscribedTopics ?? []).map((t) => t.toLowerCase().replace(/[^a-z0-9]+/g, "")));
-    posts = posts.filter((p) => p.author !== "rss-bot" || (p.tags[0] && subTags.has(p.tags[0])));
+    posts = posts.filter((p) => p.author !== "rss-bot" || (p.tags?.[0] && subTags.has(p.tags[0])));
   }
 
   const reasons = new Map<string, RecommendationReason>();

@@ -171,7 +171,7 @@ class FeedService {
     if (!(await postIsAuthentic(post))) return;
     if (blockedPost(post)) return;   // content-safety: never store/rebroadcast blocked content
     if (await storage.getPost(post.id)) return;
-    post.embedding ??= embed([post.text ?? "", ...post.tags].join(" "));
+    post.embedding ??= embed([post.text ?? "", ...(post.tags ?? [])].join(" "));
     await storage.putPost(post);
     await this.maybeReplyAlert(post);
     bus.emit("feed:updated", undefined);

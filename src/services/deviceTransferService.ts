@@ -94,8 +94,10 @@ class DeviceTransferService {
         });
       });
       peer.on("error", (e: any) => {
-        if (e?.type === "unavailable-id") startPeer(PREFIX + makeCode(6)); // rare code collision
-        else onStatus("error");
+        if (e?.type === "unavailable-id") {
+          try { peer.destroy(); } catch {}   // free the collided peer before retrying
+          startPeer(PREFIX + makeCode(6));    // rare code collision — pick a new code
+        } else onStatus("error");
       });
     };
     startPeer(PREFIX + code);

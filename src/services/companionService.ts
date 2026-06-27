@@ -87,14 +87,37 @@ async function loadModel(id: string): Promise<any | null> {
       // never block the UI thread (that was the "page unresponsive" freeze on boot).
       // The worker hosts WebWorkerMLCEngineHandler — see llm.worker.ts.
       const worker = new Worker(new URL("./llm.worker.ts", import.meta.url), { type: "module" });
-      const eng = await webllm.CreateWebWorkerMLCEngine(worker, id, {
-        // Cache model weights in IndexedDB, not CacheStorage. CacheStorage.open
-        // throws "Unexpected internal error" in some Chrome profiles/contexts (and
-        // is blocked in others) — IndexedDB is available everywhere the rest of the
-        // app already uses it, so the model actually caches + loads reliably.
-        appConfig: { ...webllm.prebuiltAppConfig, cacheBackend: "indexeddb" },
-        initProgressCallback: (p: any) => bus.emit("companion:model", { state: "loading", id, progress: p.progress ?? 0, text: p.text }),
+      // If the worker fails to import web-llm it CATCHES the error and posts a
+      // "led-worker-fatal" message — so worker.onerror never fires and
+      // CreateWebWorkerMLCEngine would hang forever (companion stuck "loading").
+      // Race the engine handshake against that fatal signal so we reject instead.
+      let fatalCleanup = () => {};
+      const fatal = new Promise<never>((_, reject) => {
+        const onMsg = (e: MessageEvent) => { if ((e.data as any)?.kind === "led-worker-fatal") reject(new Error("web-llm worker failed to load: " + (e.data as any).error)); };
+        const onErr = (e: any) => reject(new Error("web-llm worker error: " + (e?.message ?? "unknown")));
+        worker.addEventListener("message", onMsg);
+        worker.addEventListener("error", onErr);
+        fatalCleanup = () => { worker.removeEventListener("message", onMsg); worker.removeEventListener("error", onErr); };
       });
+      let eng: any;
+      try {
+        eng = await Promise.race([
+          webllm.CreateWebWorkerMLCEngine(worker, id, {
+            // Cache model weights in IndexedDB, not CacheStorage. CacheStorage.open
+            // throws "Unexpected internal error" in some Chrome profiles/contexts (and
+            // is blocked in others) — IndexedDB is available everywhere the rest of the
+            // app already uses it, so the model actually caches + loads reliably.
+            appConfig: { ...webllm.prebuiltAppConfig, cacheBackend: "indexeddb" },
+            initProgressCallback: (p: any) => bus.emit("companion:model", { state: "loading", id, progress: p.progress ?? 0, text: p.text }),
+          }),
+          fatal,
+        ]);
+      } catch (err) {
+        try { worker.terminate(); } catch { /* ignore */ }   // don't leak the dead worker
+        throw err;
+      } finally {
+        fatalCleanup();
+      }
       engine = eng; loadedId = id;
       bus.emit("companion:model", { state: "ready", id });
       return eng;
