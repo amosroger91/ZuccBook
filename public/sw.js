@@ -11,7 +11,10 @@
  * The scope is derived from this file's location, so it works unchanged whether
  * served from a domain root, a GitHub Pages subpath, IPFS, or a USB stick.
  */
-const VERSION = "zb-v2"; // bump → activate() purges every old cache, forcing all clients onto the fresh build
+const VERSION = "zb-v3"; // bump → activate() purges every old cache, forcing all clients onto the fresh build.
+// IMPORTANT: bump this whenever a STABLE-named asset changes (logo.png, favicon.ico,
+// icon-*.png, manifest). Those are cached cache-first, so without a version bump
+// clients keep serving the OLD copy forever (hashed JS/CSS update on their own).
 const SCOPE = new URL("./", self.location).pathname;
 const SHELL = SCOPE; // start_url / index.html
 
