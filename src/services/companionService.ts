@@ -12,6 +12,7 @@
 // ============================================================
 import type { CompanionPersona, CompanionMessage, Post, Community } from "@/types";
 import { storage } from "./storage";
+import { identityService } from "./identityService";
 import { bus } from "@/lib/events";
 import { newId } from "@/lib/id";
 import { topTerms } from "@/lib/embeddings";
@@ -186,7 +187,20 @@ class CompanionService {
 
   history() { return storage.companionHistory(); }
 
+  /** Ask with feed + community context gathered automatically (so callers like the
+   *  mini-dock don't have to assemble it). Keeps every surface equally grounded. */
+  async askWithContext(prompt: string): Promise<CompanionMessage> {
+    const [posts, communities] = await Promise.all([
+      storage.recentPosts(40).catch(() => [] as Post[]),
+      storage.communities().catch(() => [] as Community[]),
+    ]);
+    return this.ask(prompt, { posts, communities });
+  }
+
   async ask(prompt: string, context?: { posts?: Post[]; communities?: Community[] }): Promise<CompanionMessage> {
+    // Capture prior turns BEFORE recording this one so the model sees the
+    // conversation so far (multi-turn coherence) without echoing the new message.
+    const prior = await storage.companionHistory().catch(() => [] as CompanionMessage[]);
     const userMsg: CompanionMessage = { id: newId("cm"), role: "user", text: prompt, at: Date.now() };
     await storage.addCompanionMsg(userMsg);
     bus.emit("companion:thinking", true);
@@ -194,7 +208,7 @@ class CompanionService {
     try {
       if (this.useLLM && isWebGPU()) {
         const eng = await loadModel(this.model);
-        text = eng ? await this.llmAnswer(eng, prompt, context) : this.heuristicAnswer(prompt, context);
+        text = eng ? await this.llmAnswer(eng, prompt, context, prior) : this.heuristicAnswer(prompt, context);
       } else {
         text = this.heuristicAnswer(prompt, context);
       }
@@ -207,17 +221,40 @@ class CompanionService {
     return reply;
   }
 
-  private async llmAnswer(eng: any, prompt: string, ctx?: { posts?: Post[] }): Promise<string> {
-    const sys = `You are Ledger's on-device AI companion, running fully locally and privately in the user's browser. Be concise, friendly and helpful.`;
-    const feed = (ctx?.posts ?? []).slice(0, 8).map((p) => `- ${p.authorName}: ${p.text ?? ""}`).join("\n");
-    const reply = await eng.chat.completions.create({
-      messages: [
-        { role: "system", content: sys },
-        ...(feed ? [{ role: "user", content: `Context (recent feed):\n${feed}` } as const] : []),
-        { role: "user", content: prompt },
-      ],
-      temperature: 0.7,
-    });
+  /** System prompt — gives the model its identity, the user's name, what it can
+   *  (and can't) do, and how to behave. This is what makes answers coherent and
+   *  on-brand instead of generic. */
+  private systemPrompt(): string {
+    const name = identityService.current?.username?.trim() || "there";
+    return [
+      "You are the Companion on Ledger — a decentralized, local-first social app that runs entirely in the user's web browser.",
+      "On Ledger: the user OWNS their identity (a cryptographic keypair, not an account on a server); the feed is ranked on-device; posts and messages travel peer-to-peer (Gun + Nostr); there are no central servers.",
+      "You run 100% locally on this device via WebGPU — nothing the user types ever leaves their machine. You can state this truthfully if asked about privacy.",
+      `You're chatting with ${name}.`,
+      "Be genuinely helpful, specific and concise — a few sentences unless they ask for depth. Friendly and direct, never corporate or sycophantic.",
+      "Use the feed context provided below when it's relevant. If something isn't in the context and you don't know it, say so plainly rather than inventing facts, names, or events.",
+      "You CAN help with: making sense of the feed and what's trending, suggesting communities/people, drafting or sharpening posts, explaining how Ledger works, and thinking problems through.",
+      "You CANNOT take actions for them (post, follow, mute, change settings) — if they want one of those, briefly tell them how to do it instead of pretending you did.",
+    ].join("\n");
+  }
+
+  private async llmAnswer(eng: any, prompt: string, ctx?: { posts?: Post[]; communities?: Community[] }, prior: CompanionMessage[] = []): Promise<string> {
+    const posts = ctx?.posts ?? [];
+    const feedLines = posts.slice(0, 6).map((p) => `- ${p.authorName}: ${(p.text ?? "").slice(0, 180)}`).join("\n");
+    const digest = posts.length ? this.feedDigest(posts) : null;
+    const contextBlock = feedLines
+      ? `The user's current feed (recent posts):\n${feedLines}${digest?.themes.length ? `\nThemes right now: ${digest.themes.join(", ")}.` : ""}`
+      : "";
+    // Replay recent conversation turns so follow-ups ("expand on that", "why?")
+    // make sense. Cap to keep the prompt small on the smaller on-device models.
+    const history = prior.slice(-8).map((m) => ({ role: m.role === "companion" ? "assistant" : "user", content: m.text } as const));
+    const messages = [
+      { role: "system", content: this.systemPrompt() } as const,
+      ...(contextBlock ? [{ role: "system", content: contextBlock } as const] : []),
+      ...history,
+      { role: "user", content: prompt } as const,
+    ];
+    const reply = await eng.chat.completions.create({ messages, temperature: 0.7, max_tokens: 512 });
     return reply.choices?.[0]?.message?.content ?? this.heuristicAnswer(prompt, ctx);
   }
 

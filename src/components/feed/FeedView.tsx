@@ -340,6 +340,20 @@ export default function FeedView() {
     return () => clearInterval(id);
   }, [doRefresh]);
 
+  // Warm the on-device AI model AFTER the timeline has loaded: once the feed has
+  // real content, kick off the model download/compile during idle so it's ready
+  // when the user opens the Companion — without competing with first paint or
+  // scrolling. Fires once; honours WebGPU support + the user's LLM settings (the
+  // model otherwise still loads lazily on first ask).
+  const aiWarmedRef = useRef(false);
+  useEffect(() => {
+    if (aiWarmedRef.current || shown.length === 0) return;
+    if (!companionService.isSupported() || settings.useWebLLM === false || settings.llmOptOut) return;
+    aiWarmedRef.current = true;
+    const idle: (cb: () => void) => void = (globalThis as any).requestIdleCallback ?? ((cb) => setTimeout(cb, 2000));
+    idle(() => { companionService.preload().catch(() => {}); });
+  }, [shown.length, settings.useWebLLM, settings.llmOptOut]);
+
   // Pull/scroll-to-refresh on the app scroll container (touch on mobile, wheel on desktop).
   useEffect(() => {
     const el = document.getElementById("app-scroll");

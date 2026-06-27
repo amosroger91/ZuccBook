@@ -62,7 +62,7 @@ function CompanionPanel({ intro, autoPrompt, onConsumed, onMin, onClose }: { int
 
   async function deliver(text: string) {
     const t = text.trim(); if (!t) return;
-    await companionService.ask(t);
+    await companionService.askWithContext(t);   // grounded in the live feed, like the full page
     setHistory(await companionService.history());
   }
   function send() { const t = input.trim(); if (!t) return; setInput(""); deliver(t); }
