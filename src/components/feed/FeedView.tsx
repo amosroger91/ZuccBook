@@ -16,6 +16,7 @@ import { feedService } from "@/services/feedService";
 import { companionService } from "@/services/companionService";
 import { rssService } from "@/services/rssService";
 import { changelogService } from "@/services/changelogService";
+import { trustService } from "@/services/trustService";
 import { storage } from "@/services/storage";
 import { useStore } from "@/store/useStore";
 import { bus } from "@/lib/events";
@@ -100,14 +101,27 @@ export default function FeedView() {
   const [verdicts, setVerdicts] = useState<Map<string, import("@/types").ModerationVerdict>>(new Map());
   const [filter, setFilter] = useState<ContentFilter>("all");
   const [scrolledDeep, setScrolledDeep] = useState(false);
-  const [pull, setPull] = useState(0);   // pull-to-refresh progress (0..1.6)
+  const [pull, setPull] = useState(0);   // top pull-to-refresh progress (0..1.6)
+  const [pullUp, setPullUp] = useState(0); // bottom pull-to-top progress (0..1.6)
   const [newCount, setNewCount] = useState(0); // new posts held behind the pill (kept out of the feed you're reading)
+
+  // Timestamp of the last scroll, so the background reconcile can hold off while
+  // you're actively scrolling (re-ranking + rebuilding the feed mid-scroll is what
+  // made deep scrolling stutter as the Nostr/RSS firehose streamed in).
+  const lastScrollRef = useRef(0);
+  // Timestamp of the last feed (re)generation, so the auto-refresh below only fires
+  // when the feed has actually gone stale (no manual/firehose update in a while).
+  const lastFetchRef = useRef(0);
+  const stampFetch = () => { lastFetchRef.current = typeof performance !== "undefined" ? performance.now() : Date.now(); };
 
   // show "back to top" once you've scrolled past roughly one screenful
   useEffect(() => {
     const el = document.getElementById("app-scroll");
     if (!el) return;
-    const onScroll = () => setScrolledDeep(el.scrollTop > el.clientHeight);
+    const onScroll = () => {
+      lastScrollRef.current = typeof performance !== "undefined" ? performance.now() : Date.now();
+      setScrolledDeep(el.scrollTop > el.clientHeight);
+    };
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
   }, []);
@@ -202,6 +216,7 @@ export default function FeedView() {
     const res = await generateFeed();
     setPosts(res.posts); setReasons(res.reasons); setVerdicts(res.verdicts); setReplies(res.replies);
     pendingRef.current = null; setNewCount(0);
+    stampFetch();
   }, [generateFeed]);
 
   // BACKGROUND reconcile: a feed you're reading must NOT reorder under you as the
@@ -228,6 +243,7 @@ export default function FeedView() {
       setNewCount(res.posts.filter((p) => !prevIds.has(p.id)).length);
     }
     setReasons(res.reasons); setVerdicts(res.verdicts); setReplies(res.replies);
+    stampFetch();
   }, [generateFeed]);
 
   // Clicking the "N new posts" pill: jump all the way to the top of the app AND pull a
@@ -246,13 +262,19 @@ export default function FeedView() {
   useEffect(() => {
     refresh();
     const GAP = 1200;   // coalesce the relay/Nostr firehose hard — re-ranking every 400ms while it floods pinned the thread
+    const SCROLL_IDLE = 450;  // …and never reconcile mid-scroll — wait for a brief pause so the rebuild can't stutter your scroll
     const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
     let timer: ReturnType<typeof setTimeout> | null = null;
     let last = 0;
-    const fire = () => { last = now(); timer = null; applyBackground(); };
+    const fire = () => {
+      // Hold off while the user is actively scrolling; retry once they pause.
+      const sinceScroll = now() - lastScrollRef.current;
+      if (sinceScroll < SCROLL_IDLE) { timer = setTimeout(fire, SCROLL_IDLE - sinceScroll); return; }
+      last = now(); timer = null; applyBackground();
+    };
     const onUpdate = () => {
       const elapsed = now() - last;
-      if (elapsed >= GAP) { if (timer) clearTimeout(timer); fire(); }
+      if (elapsed >= GAP) { if (timer) clearTimeout(timer); timer = setTimeout(fire, 0); }
       else if (!timer) timer = setTimeout(fire, GAP - elapsed);
     };
     const off = bus.on("feed:updated", onUpdate);
@@ -294,6 +316,30 @@ export default function FeedView() {
   // The Ledger logo (and anything else) can force a feed refresh via the bus.
   useEffect(() => bus.on("feed:refresh", () => { doRefresh(); }), [doRefresh]);
 
+  // Mute/block a person → they vanish from your WHOLE timeline at once: every one
+  // of their posts (and replies, and any held behind the pill), not just the card
+  // you acted on, and without waiting for the next re-rank. We re-filter the live
+  // state against the trust graph so anyone you now block/mute drops immediately.
+  useEffect(() => bus.on("trust:update", (e) => {
+    if (!e || (e.kind !== "block" && e.kind !== "mute")) return;
+    const gone = (pk: string) => trustService.isBlocked(pk) || trustService.isMuted(pk);
+    setPosts((prev) => prev.filter((p) => !gone(p.author)));
+    setReplies((prev) => { const next = new Map<string, Post[]>(); for (const [k, arr] of prev) next.set(k, arr.filter((r) => !gone(r.author))); return next; });
+    if (pendingRef.current) pendingRef.current = { ...pendingRef.current, posts: pendingRef.current.posts.filter((p) => !gone(p.author)) };
+  }), []);
+
+  // Auto-refresh every minute, but only when the feed has actually gone stale —
+  // i.e. nothing (manual pull, firehose reconcile, or a prior auto-fetch) has
+  // refreshed it in the last 60s. Polls more often, fires at most ~1×/min idle.
+  useEffect(() => {
+    const STALE = 60000;
+    const id = setInterval(() => {
+      const nowMs = typeof performance !== "undefined" ? performance.now() : Date.now();
+      if (nowMs - lastFetchRef.current >= STALE) doRefresh();
+    }, 20000);
+    return () => clearInterval(id);
+  }, [doRefresh]);
+
   // Pull/scroll-to-refresh on the app scroll container (touch on mobile, wheel on desktop).
   useEffect(() => {
     const el = document.getElementById("app-scroll");
@@ -326,6 +372,51 @@ export default function FeedView() {
     el.addEventListener("wheel", onWheel, { passive: true });
     return () => { el.removeEventListener("touchstart", onTouchStart); el.removeEventListener("touchmove", onTouchMove); el.removeEventListener("touchend", onTouchEnd); el.removeEventListener("wheel", onWheel); clearTimeout(decay); };
   }, [doRefresh]);
+
+  // Jump to the top of the feed and refresh — fired by the end-of-feed button and
+  // by the bottom pull-to-top gesture below.
+  const goTopAndRefresh = useCallback(() => {
+    const el = document.getElementById("app-scroll");
+    el?.scrollTo({ top: 0, behavior: "smooth" });
+    doRefresh();
+  }, [doRefresh]);
+
+  // Bottom counterpart of the pull-to-refresh: once you're at the end of the feed,
+  // keep pulling up (touch) / scrolling down (wheel) to be taken back to the top and
+  // refresh. Mirrors the top mechanic; conditions are mutually exclusive so the two
+  // wheel/touch listeners never conflict.
+  useEffect(() => {
+    const el = document.getElementById("app-scroll");
+    if (!el) return;
+    const THRESH = 80;
+    const st = { startY: 0, dragging: false, val: 0, accum: 0 };
+    let decay: any;
+    const atBottom = () => el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
+    const set = (v: number) => { st.val = v; setPullUp(v); };
+    const fire = () => { if (st.val >= 1) goTopAndRefresh(); else set(0); st.accum = 0; };
+    const onTouchStart = (e: TouchEvent) => { if (atBottom()) { st.startY = e.touches[0].clientY; st.dragging = true; } };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!st.dragging) return;
+      const dy = st.startY - e.touches[0].clientY;   // pull UP → positive
+      if (dy > 0 && atBottom()) set(Math.min(1.6, dy / THRESH));
+      else if (dy <= 0) { st.dragging = false; set(0); }
+    };
+    const onTouchEnd = () => { if (st.dragging) { st.dragging = false; fire(); } };
+    const onWheel = (e: WheelEvent) => {
+      if (atBottom() && e.deltaY > 0) {
+        st.accum += e.deltaY;
+        set(Math.min(1.6, st.accum / 200));
+        clearTimeout(decay);
+        if (st.accum > 200) fire();
+        else decay = setTimeout(() => set(0), 700);
+      } else if (st.val) { st.accum = 0; set(0); }
+    };
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: true });
+    el.addEventListener("touchend", onTouchEnd);
+    el.addEventListener("wheel", onWheel, { passive: true });
+    return () => { el.removeEventListener("touchstart", onTouchStart); el.removeEventListener("touchmove", onTouchMove); el.removeEventListener("touchend", onTouchEnd); el.removeEventListener("wheel", onWheel); clearTimeout(decay); };
+  }, [goTopAndRefresh]);
 
   return (
     <Box sx={{ display: "grid", gridTemplateColumns: compact ? "1fr" : "minmax(0, 1fr) clamp(260px, 22%, 320px)", gap: { xs: 2, md: 3 }, maxWidth: 1100, mx: "auto", px: { xs: 0, sm: 0, md: 0 } }}>
@@ -486,6 +577,7 @@ export default function FeedView() {
           // only the windowed cards are mounted inside it, absolutely positioned at their
           // measured offset. translateY subtracts scrollMargin because the container already
           // sits that far down the scroll (below the composer/controls).
+          <>
           <Box ref={listRef} sx={{ position: "relative", width: "100%" }} style={{ height: virtualizer.getTotalSize() }}>
             {virtualizer.getVirtualItems().map((vi) => {
               const item = feedItems[vi.index];
@@ -505,6 +597,20 @@ export default function FeedView() {
               );
             })}
           </Box>
+          {/* End-of-feed marker + pull-to-top affordance. Pulling up past the end
+              (or tapping the button) jumps to the top and refreshes. */}
+          <Box sx={{ textAlign: "center", py: 4, px: 2 }}>
+            <Typography variant="body2" sx={{ fontWeight: 700, color: "text.secondary" }}>🎉 You're all caught up</Typography>
+            <Typography variant="caption" color={pullUp >= 1 ? "primary" : "text.secondary"} sx={{ display: "block", mt: 0.5 }}>
+              {pullUp > 0
+                ? (pullUp >= 1 ? "Release to jump to the top & refresh" : "Keep pulling to jump to the top…")
+                : "You've reached the end of your feed — pull up to jump to the top & refresh."}
+            </Typography>
+            <Button onClick={goTopAndRefresh} startIcon={<KeyboardArrowUpRoundedIcon />} sx={{ mt: 1, textTransform: "none", fontWeight: 700 }}>
+              Back to top & refresh
+            </Button>
+          </Box>
+          </>
         )}
       </Box>
 
