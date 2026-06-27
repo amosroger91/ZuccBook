@@ -250,7 +250,10 @@ export interface ModerationVerdict {
 }
 
 // A directed trust relationship — the web of trust. Optionally community-scoped.
-export type TrustKind = "vouch" | "block" | "mute" | "report";
+// "none" is a revocation tombstone — a signed edge that supersedes a prior
+// vouch/block/mute/report so clearing it survives Gun re-sync. Treated as neutral
+// everywhere (no trust weight, not a block/mute).
+export type TrustKind = "vouch" | "block" | "mute" | "report" | "none";
 export interface TrustEdge {
   from: string;             // public key
   to: string;               // public key

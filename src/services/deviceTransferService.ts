@@ -131,6 +131,10 @@ class DeviceTransferService {
       });
       peer.on("error", (e: any) => {
         if (done) return;
+        // Tear down THIS failed peer before retrying — otherwise each retry leaks
+        // a live Peer (its socket, ICE agents and reconnect timers), up to 10×.
+        try { peer.destroy(); } catch {}
+        if (this.rxPeer === peer) this.rxPeer = null;
         if (e?.type === "peer-unavailable") {
           if (tries < 10) { tries++; cb.onStatus("waiting"); setTimeout(connect, 1000); }
           else cb.onError("Couldn't reach your other device. Keep the QR screen open on it and try again.");

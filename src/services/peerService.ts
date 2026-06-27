@@ -200,7 +200,10 @@ class PeerService {
         this.sendSyncReq(c);
       });
       c.on("data", (d) => this.handle(d as Envelope, c.peer));
-      c.on("close", () => { this.clients.delete(c.peer); bus.emit("peer:disconnected", { pk: c.peer }); });
+      // Only forget the client if THIS connection is still the one we hold for that
+      // peer id. A quick reconnect replaces the map entry; without this check the old
+      // connection's late "close" would delete the new, active one.
+      c.on("close", () => { if (this.clients.get(c.peer) === c) { this.clients.delete(c.peer); bus.emit("peer:disconnected", { pk: c.peer }); } });
       c.on("error", () => {});
     });
   }
@@ -211,8 +214,11 @@ class PeerService {
     this.hubConn = c;
     c.on("open", () => { c.send({ t: "hello", d: { pk: identityService.pk } }); presenceService.announceSelf(); this.sendSyncReq(c); });
     c.on("data", (d) => this.handle(d as Envelope));
-    c.on("close", () => { if (!this.leaving) this.reelect(); });
-    c.on("error", () => { if (!this.leaving) this.reelect(); });
+    // Only re-elect if the connection that closed is still our CURRENT hub link.
+    // A stale, previously-replaced hubConn finishing its close must not tear down
+    // the new active connection/peer.
+    c.on("close", () => { if (!this.leaving && this.hubConn === c) this.reelect(); });
+    c.on("error", () => { if (!this.leaving && this.hubConn === c) this.reelect(); });
   }
 
   private reelect() {

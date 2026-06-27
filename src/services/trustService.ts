@@ -57,8 +57,20 @@ class TrustService {
   report(to: string, reason?: string) { return this.set(to, "report", { reason }); }
   async clear(to: string, community?: string) {
     const me = identityService.pk;
-    for (const kind of ["vouch", "block", "mute", "report"] as TrustKind[]) edges.delete(key({ from: me, to, community }));
+    if (!me) return;
+    // Supersede the edge with a signed "none" tombstone (newer timestamp) rather
+    // than just deleting it locally. A bare delete is silently undone on the next
+    // sync/reload: Gun re-emits the original signed edge and ingest() re-applies it
+    // (re-blocking/-muting/-vouching). ingest() keeps the higher `at`, so this
+    // revocation wins and the old edge can't resurrect. Shares the (from|to|community)
+    // key, so it overwrites whatever kind was there.
+    const e: TrustEdge = { from: me, to, kind: "none", community, at: Date.now() };
+    const secret = identityService.current;
+    if (secret) await signTrust(e, secret.privateKeyJwk);
+    edges.set(key(e), e);
     await this.persistMine();
+    bus.emit("trust:publish", e);
+    bus.emit("trust:update", e);
   }
 
   /** My direct edge to someone (most recent kind), ignoring community for the menu. */

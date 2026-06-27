@@ -18,6 +18,11 @@ class MarketplaceService {
   async ingest(l: Listing) {
     if (!l || !l.id) return;
     const prev = cache.get(l.id);
+    // 'sold' is terminal: a buyer marks sold OUTSIDE the signed payload, so the
+    // sold copy keeps the seller's original createdAt. A slower peer/Gun relay can
+    // re-emit the original unsold copy with the SAME (or older) createdAt — never
+    // let it overwrite a listing we already know is sold.
+    if (prev?.sold && !l.sold) return;
     if (prev && prev.createdAt > l.createdAt && !l.sold) return;
     // Verify the seller's signature — the listing carries a Polygon payout
     // address a buyer will pay, so a forged listing must never be shown.
