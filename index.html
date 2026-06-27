@@ -33,11 +33,17 @@
         place-items: center;
         z-index: 9999;
         transition: opacity .4s cubic-bezier(0.4, 0, 0.2, 1);
-        background: #ffffff;
+        background: radial-gradient(circle at 20% 20%, #e0eefe 0%, transparent 60%),
+                    radial-gradient(circle at 80% 80%, #f3e8ff 0%, transparent 60%),
+                    #ffffff;
       }
       
       @media (prefers-color-scheme: dark) {
-        #boot { background: #15202b; }
+        #boot {
+          background: radial-gradient(circle at 20% 30%, #1e293b 0%, transparent 60%),
+                      radial-gradient(circle at 80% 80%, #0f172a 0%, transparent 60%),
+                      #0b0f19;
+        }
       }
       
       #boot .boot-inner {
