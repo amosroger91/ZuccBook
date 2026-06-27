@@ -48,16 +48,22 @@ export const theme = createTheme({
     },
   },
   palette: {
+    // MUI palette colours MUST be concrete values — MUI runs alpha()/contrast math
+    // and augmentColor() over them, and a CSS var like var(--bl-accent) is not a
+    // parseable color, so it throws "unsupported color" (minified error #9) at theme
+    // creation and the WHOLE app fails to render. These mirror the --bl-* design
+    // tokens (light + dark from bliss.css). The rest of the UI still themes via the
+    // var(--bl-*) values in sx/styleOverrides, which flip with prefers-color-scheme.
     mode: isDark ? "dark" : "light",
-    primary: { main: "var(--bl-accent)", light: "var(--bl-blue-400)", dark: "var(--bl-blue-700)", contrastText: "#fff" },
-    secondary: { main: "var(--bl-green-500)" },
-    error: { main: "var(--bl-danger)" },
-    warning: { main: "var(--bl-warn)" },
-    success: { main: "var(--bl-ok)" },
-    info: { main: "var(--bl-info)" },
-    background: { default: "var(--bl-canvas)", paper: "var(--bl-face)" },
-    text: { primary: "var(--bl-ink)", secondary: "var(--bl-ink-dim)" },
-    divider: "var(--bl-line)",
+    primary: { main: "#1d9bf0", light: "#3b9df7", dark: "#1570ab", contrastText: "#fff" },
+    secondary: { main: "#22c55e", contrastText: "#fff" },
+    error: { main: "#f4212e" },
+    warning: { main: isDark ? "#ffd400" : "#f59e0b" },
+    success: { main: "#00ba7c" },
+    info: { main: "#1d9bf0" },
+    background: isDark ? { default: "#0f1419", paper: "#15202b" } : { default: "#f0f2f5", paper: "#ffffff" },
+    text: isDark ? { primary: "#f7f9fa", secondary: "#8899a6" } : { primary: "#0f1419", secondary: "#536471" },
+    divider: isDark ? "#2f3336" : "#eff3f4",
   },
   shape: { borderRadius: 8 },
   typography: {

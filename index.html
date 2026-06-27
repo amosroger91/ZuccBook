@@ -50,20 +50,79 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 12px;
+        gap: 8px;
+      }
+      
+      #boot .logo-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 120px;
+        height: 120px;
+      }
+      
+      #boot .glow-ring {
+        position: absolute;
+        width: 104px;
+        height: 104px;
+        border-radius: 50%;
+        border: 2px solid transparent;
+        border-top-color: #1d9bf0;
+        border-bottom-color: rgba(29, 155, 240, 0.1);
+        border-left-color: #1d9bf0;
+        border-right-color: rgba(29, 155, 240, 0.1);
+        animation: spin-orbit 2s linear infinite;
+      }
+      
+      @keyframes spin-orbit {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      #boot .logo-container {
+        position: relative;
+        overflow: hidden;
+        border-radius: 18px;
+        width: 80px;
+        height: 80px;
+        display: grid;
+        place-items: center;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+      }
+      
+      @media (prefers-color-scheme: dark) {
+        #boot .logo-container {
+          box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+        }
       }
       
       #boot .boot-logo {
         width: 80px;
         height: 80px;
-        border-radius: 18px;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+        display: block;
       }
       
-      @media (prefers-color-scheme: dark) {
-        #boot .boot-logo {
-          box-shadow: 0 8px 30px rgba(0,0,0,0.3);
-        }
+      #boot .shimmer {
+        position: absolute;
+        top: 0;
+        left: -150%;
+        width: 150%;
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          rgba(255, 255, 255, 0) 0%,
+          rgba(255, 255, 255, 0.35) 50%,
+          rgba(255, 255, 255, 0) 100%
+        );
+        transform: skewX(-20deg);
+        animation: sweep-shimmer 2.5s infinite ease-in-out;
+      }
+      
+      @keyframes sweep-shimmer {
+        0% { left: -150%; }
+        50% { left: 150%; }
+        100% { left: 150%; }
       }
       
       #boot .mark {
@@ -72,7 +131,7 @@
         font-size: 26px;
         letter-spacing: -0.02em;
         color: #0f1419;
-        margin-top: 8px;
+        margin-top: 10px;
       }
       
       @media (prefers-color-scheme: dark) {
@@ -81,37 +140,46 @@
         }
       }
       
-      #boot .loader-bar {
-        position: relative;
-        width: 120px;
-        height: 3px;
-        background-color: rgba(29, 155, 240, 0.12);
-        border-radius: 999px;
-        overflow: hidden;
-        margin-top: 12px;
+      #boot .wave-loader {
+        display: flex;
+        gap: 6px;
+        margin-top: 16px;
+        height: 8px;
+        align-items: center;
       }
       
-      #boot .loader-bar-fill {
-        position: absolute;
-        height: 100%;
-        width: 50%;
+      #boot .wave-loader span {
+        width: 6px;
+        height: 6px;
         background-color: #1d9bf0;
-        border-radius: 999px;
-        animation: loading-bar 1.5s infinite cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 50%;
+        animation: wave-bounce 1.4s infinite ease-in-out;
       }
       
-      @keyframes loading-bar {
-        0% { left: -50%; }
-        100% { left: 100%; }
+      @keyframes wave-bounce {
+        0%, 100% { transform: translateY(0); opacity: 0.35; }
+        50% { transform: translateY(-6px); opacity: 1; }
       }
     </style>
   </head>
   <body class="bl-root" data-bl-theme="blue">
     <div id="boot">
       <div class="boot-inner">
-        <img class="boot-logo" src="logo.png" alt="Ledgr" />
+        <div class="logo-wrapper">
+          <div class="glow-ring"></div>
+          <div class="logo-container">
+            <img class="boot-logo" src="logo.png" alt="Ledgr" />
+            <div class="shimmer"></div>
+          </div>
+        </div>
         <div class="mark">Ledgr</div>
-        <div class="loader-bar"><div class="loader-bar-fill"></div></div>
+        <div class="wave-loader">
+          <span style="animation-delay: 0s"></span>
+          <span style="animation-delay: 0.15s"></span>
+          <span style="animation-delay: 0.3s"></span>
+          <span style="animation-delay: 0.45s"></span>
+          <span style="animation-delay: 0.6s"></span>
+        </div>
       </div>
     </div>
     <div id="root"></div>
