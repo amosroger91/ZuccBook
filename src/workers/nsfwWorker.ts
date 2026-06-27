@@ -23,8 +23,13 @@ function getModel(): Promise<NSFWJS> {
   if (!modelP) {
     modelP = (async () => {
       tf = await import("@tensorflow/tfjs");
-      const nsfwjs = await import("nsfwjs");
-      return nsfwjs.load(); // default MobileNetV2
+      // Import ONLY the MobileNetV2 model (~3.4MB) via nsfwjs's official subpath
+      // exports + our own modelDefinitions. Importing the nsfwjs index instead
+      // statically bundles ALL THREE shipped models (inception_v3 ~32MB +
+      // mobilenet_v2_mid), ~40MB of weight chunks for a model we never use.
+      const { load } = await import("nsfwjs/core");
+      const { MobileNetV2Model } = await import("nsfwjs/models/mobilenet_v2");
+      return load("MobileNetV2", { modelDefinitions: [MobileNetV2Model] });
     })();
   }
   return modelP;
