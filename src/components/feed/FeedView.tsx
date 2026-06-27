@@ -459,8 +459,11 @@ export default function FeedView() {
         )}
 
         {/* New posts that arrived while you were scrolled down — held here so the feed
-            you're reading never reorders under you. Tap to fold them in and jump up. */}
-        {newCount > 0 && (
+            you're reading never reorders under you. Tap to fold them in and jump up.
+            Hidden while a refresh is streaming (the "Fetching feeds" banner already
+            signals incoming posts) so the two never show at once; it reappears with
+            the accumulated count once the refresh finishes. */}
+        {newCount > 0 && !refreshing && (
           <Box sx={{ position: "sticky", top: 8, zIndex: 6, display: "flex", justifyContent: "center", mb: 1.5, pointerEvents: "none" }}>
             <Button onClick={applyPending} variant="contained" size="small" startIcon={<KeyboardArrowUpRoundedIcon />}
               sx={{ pointerEvents: "auto", borderRadius: 999, textTransform: "none", fontWeight: 800, px: 2.5, boxShadow: 4, background: "linear-gradient(135deg,#3f97ff,#1668e0)", "&:hover": { background: "linear-gradient(135deg,#3f97ff,#0a55cf)" } }}>
