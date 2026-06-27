@@ -13,6 +13,7 @@
 import type { CompanionPersona, CompanionMessage, Post, Community } from "@/types";
 import { storage } from "./storage";
 import { identityService } from "./identityService";
+import { webLookupService } from "./webLookupService";
 import { bus } from "@/lib/events";
 import { newId } from "@/lib/id";
 import { topTerms } from "@/lib/embeddings";
@@ -208,7 +209,15 @@ class CompanionService {
     try {
       if (this.useLLM && isWebGPU()) {
         const eng = await loadModel(this.model);
-        text = eng ? await this.llmAnswer(eng, prompt, context, prior) : this.heuristicAnswer(prompt, context);
+        if (eng) {
+          // Tool use: let the model pull in live web info (DuckDuckGo + page text)
+          // when the question needs it, before it composes the answer.
+          const web = await this.gatherWeb(eng, prompt);
+          text = await this.llmAnswer(eng, prompt, context, prior, web.context);
+          if (web.sources.length) text += `\n\nSources:\n${web.sources.map((s) => `• ${s}`).join("\n")}`;
+        } else {
+          text = this.heuristicAnswer(prompt, context);
+        }
       } else {
         text = this.heuristicAnswer(prompt, context);
       }
@@ -233,12 +242,51 @@ class CompanionService {
       `You're chatting with ${name}.`,
       "Be genuinely helpful, specific and concise — a few sentences unless they ask for depth. Friendly and direct, never corporate or sycophantic.",
       "Use the feed context provided below when it's relevant. If something isn't in the context and you don't know it, say so plainly rather than inventing facts, names, or events.",
-      "You CAN help with: making sense of the feed and what's trending, suggesting communities/people, drafting or sharpening posts, explaining how Ledger works, and thinking problems through.",
+      "You CAN look things up on the web: when web results or a fetched page's text are provided below, treat them as your current source of truth and cite the source URL(s) you used. (The app fetches them for you.)",
+      "You CAN help with: looking up current facts, making sense of the feed and what's trending, suggesting communities/people, drafting or sharpening posts, explaining how Ledger works, and thinking problems through.",
       "You CANNOT take actions for them (post, follow, mute, change settings) — if they want one of those, briefly tell them how to do it instead of pretending you did.",
     ].join("\n");
   }
 
-  private async llmAnswer(eng: any, prompt: string, ctx?: { posts?: Post[]; communities?: Community[] }, prior: CompanionMessage[] = []): Promise<string> {
+  /** Tool step: decide whether to hit the web, then fetch DuckDuckGo answers and/or
+   *  scrape a page, returning compact context text + the source URLs used. A pasted
+   *  URL is scraped directly; otherwise the model itself decides if a search helps. */
+  private async gatherWeb(eng: any, prompt: string): Promise<{ context: string; sources: string[] }> {
+    try {
+      const url = prompt.match(/https?:\/\/[^\s)]+/)?.[0];
+      if (url) {
+        const page = await webLookupService.readPage(url);
+        if (page) return { context: `Fetched page (${page.url}):\n${page.title ? page.title + "\n" : ""}${page.text}`, sources: [page.url] };
+      }
+      const query = await this.routeSearch(eng, prompt);
+      if (query) {
+        const res = await webLookupService.lookup(query);
+        if (res) return res;
+      }
+    } catch { /* web tools are best-effort */ }
+    return { context: "", sources: [] };
+  }
+
+  /** Ask the model whether the question needs a web search; parse a one-line
+   *  "SEARCH: <query>" directive. Returns the query, or null to answer offline. */
+  private async routeSearch(eng: any, prompt: string): Promise<string | null> {
+    try {
+      const r = await eng.chat.completions.create({
+        messages: [
+          { role: "system", content: "Decide if answering the user needs a live web search (current events, specific facts, definitions, prices, or anything you can't reliably know). If yes, reply EXACTLY one line: SEARCH: <a concise query>. If you can answer from general knowledge, or it's about the user's own feed/app, reply EXACTLY: NONE. Output only that one line." },
+          { role: "user", content: prompt.slice(0, 500) },
+        ],
+        temperature: 0,
+        max_tokens: 40,
+      });
+      const out: string = (r.choices?.[0]?.message?.content ?? "").trim();
+      const m = out.match(/SEARCH:\s*(.+)/i);
+      if (!m) return null;
+      return m[1].split("\n")[0].replace(/^["']|["']$/g, "").trim().slice(0, 120) || null;
+    } catch { return null; }
+  }
+
+  private async llmAnswer(eng: any, prompt: string, ctx?: { posts?: Post[]; communities?: Community[] }, prior: CompanionMessage[] = [], webContext = ""): Promise<string> {
     const posts = ctx?.posts ?? [];
     const feedLines = posts.slice(0, 6).map((p) => `- ${p.authorName}: ${(p.text ?? "").slice(0, 180)}`).join("\n");
     const digest = posts.length ? this.feedDigest(posts) : null;
@@ -250,6 +298,7 @@ class CompanionService {
     const history = prior.slice(-8).map((m) => ({ role: m.role === "companion" ? "assistant" : "user", content: m.text } as const));
     const messages = [
       { role: "system", content: this.systemPrompt() } as const,
+      ...(webContext ? [{ role: "system", content: `Live web results (use as your source of truth; cite the source URLs):\n${webContext}` } as const] : []),
       ...(contextBlock ? [{ role: "system", content: contextBlock } as const] : []),
       ...history,
       { role: "user", content: prompt } as const,
