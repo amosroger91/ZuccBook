@@ -16,10 +16,21 @@ import { trustService } from "./trustService";
 import { embed, InterestProfile } from "@/lib/embeddings";
 import { rankFeed, type RankOpts, type RankResult } from "@/lib/feedRank";
 import { signPost, postIsAuthentic } from "@/lib/records";
+import { isBlockedAuthorName, isBlockedText } from "@/lib/authorBlock";
 import { bus } from "@/lib/events";
 import { diag } from "@/lib/diag";
 import { newId } from "@/lib/id";
 import type { ModerationProfile } from "@/types";
+
+// Content-safety gate at INGESTION: inbound peer/relay/Nostr posts that hit the
+// blocklist (spam brands in name/body/links, or child-exploitation signals) are
+// never stored — so this node won't persist or rebroadcast them. The feed render
+// also screens (lib/feedRank), but dropping here is defense in depth.
+function blockedPost(post: Post): boolean {
+  if (isBlockedAuthorName(post.authorName)) return true;
+  const hay = [post.text, post.authorName, post.poll?.question, ...(post.tags ?? []), ...((post.media ?? []).map((m) => m.url))].filter(Boolean).join(" ");
+  return isBlockedText(hay);
+}
 
 // Positive reactions double as a soft "vouch" for the author (web of trust),
 // so genuine positive interactions raise contextual trust. 👀 is neutral.
@@ -158,6 +169,7 @@ class FeedService {
    *  (rss-bot/system) carry no keypair and are exempt. */
   async ingest(post: Post) {
     if (!(await postIsAuthentic(post))) return;
+    if (blockedPost(post)) return;   // content-safety: never store/rebroadcast blocked content
     if (await storage.getPost(post.id)) return;
     post.embedding ??= embed([post.text ?? "", ...post.tags].join(" "));
     await storage.putPost(post);
@@ -179,6 +191,7 @@ class FeedService {
   async absorb(post: Post) {
     if (!post || !post.id) return;
     if (!(await postIsAuthentic(post))) return;   // never trust an unsigned/forged copy
+    if (blockedPost(post)) return;                // content-safety: don't store/rebroadcast
     const existing = await storage.getPost(post.id);
     if (!existing) {
       post.embedding ??= embed([post.text ?? "", ...(post.tags ?? [])].join(" "));
@@ -211,6 +224,7 @@ class FeedService {
     for (const post of posts) {
       if (!post?.id) continue;
       if (!(await postIsAuthentic(post))) continue;   // drop forged/unsigned history
+      if (blockedPost(post)) continue;                // content-safety: don't store/rebroadcast
       const existing = await storage.getPost(post.id);
       if (!existing) {
         post.embedding ??= embed([post.text ?? "", ...(post.tags ?? [])].join(" "));

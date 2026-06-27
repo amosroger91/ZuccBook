@@ -5,6 +5,7 @@ import { useStore } from "@/store/useStore";
 import { translateService, langName, probablyNotEnglish } from "@/services/translateService";
 import { renderBody, SafeImage, LinkCard, firstLink } from "@/components/feed/PostCard";
 import { nsfwService } from "@/services/nsfwService";
+import { isBlockedText } from "@/lib/authorBlock";
 import type { MediaRef } from "@/types";
 
 const LONG = 480;           // chars — collapse beyond this (or many lines)
@@ -21,6 +22,10 @@ export default function MessageBody({ text = "", media }: { text?: string; media
   const censor = profanityMode === "screen";
   const autoTranslate = useStore((s) => s.settings.autoTranslate);
   const hidden = (nsfwMode === "hide" || profanityMode === "hide") && nsfwService.isAdultText(text);
+  // Content-safety screen for every chat surface (Town Square, chatrooms, global
+  // chat): blocked messages (spam brands in text/links, or child-exploitation
+  // signals) are never rendered, regardless of NSFW settings.
+  const blocked = useMemo(() => isBlockedText([text, ...((media ?? []).map((m) => m.url))].join(" ")), [text, media]);
   const [trans, setTrans] = useState<{ text: string; src: string } | null>(null);
   const [showOriginal, setShowOriginal] = useState(false);
   const [translating, setTranslating] = useState(false);
@@ -53,8 +58,8 @@ export default function MessageBody({ text = "", media }: { text?: string; media
   const fade = "linear-gradient(to bottom, #000 72%, transparent)";
   const shown = clamp ? body.slice(0, 1200) : body;   // only parse what we show (long Nostr notes can be huge)
 
-  // "Hide" mode: render nothing — the message is simply not shown.
-  if (hidden) return null;
+  // "Hide" mode (NSFW setting) or a blocked message: render nothing.
+  if (hidden || blocked) return null;
 
   return (
     <Box>

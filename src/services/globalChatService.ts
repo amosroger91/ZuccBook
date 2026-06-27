@@ -10,6 +10,7 @@
 // ============================================================
 import { finalizeEvent, verifyEvent, nip19, type Event as NostrEvent } from "nostr-tools";
 import { nostrService } from "./nostrService";
+import { isBlockedAuthorName, isBlockedText } from "@/lib/authorBlock";
 import type { ChatMessage } from "@/types";
 
 // "Global Chat" points at an EXISTING, already-active public Nostr channel so it's
@@ -87,12 +88,19 @@ export function joinGlobalChat(handlers: GlobalChatHandlers): GlobalChatControll
 
   const withProfile = (msg: ChatMessage, pub: string): ChatMessage => {
     const p = profileCache.get(pub);
-    return p && (p.name || p.avatar) ? { ...msg, authorName: p.name || msg.authorName, authorAvatar: p.avatar || msg.authorAvatar } : msg;
+    // Don't adopt a profile display name that hits the blocklist (e.g. a spam brand).
+    const name = p?.name && !isBlockedAuthorName(p.name) ? p.name : msg.authorName;
+    return p && (name !== msg.authorName || p.avatar) ? { ...msg, authorName: name, authorAvatar: p.avatar || msg.authorAvatar } : msg;
   };
   const emit = (e: NostrEvent) => {
     if (!e || e.kind !== 42) return;
     try { if (!verifyEvent(e)) return; } catch { return; }      // drop forgeries
     const msg = toMessage(e);
+    // Content-safety screen: never surface blocked messages (spam brands in the
+    // text/links, or child-exploitation signals). e.content is screened raw so a
+    // term inside a stripped media URL still counts.
+    const hay = [msg.text, e.content, msg.authorName, ...((msg.media ?? []).map((m) => m.url))].filter(Boolean).join(" ");
+    if (isBlockedText(hay) || isBlockedAuthorName(msg.authorName)) return;
     emitted.set(msg.id, msg);
     handlers.onChat(withProfile(msg, e.pubkey));
     if (!profileCache.has(e.pubkey) && !requested.has(e.pubkey)) { want.add(e.pubkey); scheduleProfiles(); }
