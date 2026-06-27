@@ -42,3 +42,53 @@ export function score(edges: TrustEdge[], me: string, to: string, community?: st
   }
   return Math.max(-2, Math.min(2, s));
 }
+
+// ============================================================
+//  Indexed variants — same math, but the per-`to` edge grouping and the "people
+//  I vouched for" set are computed ONCE (buildIndex) instead of scanning the full
+//  edge array for every call. feedRank evaluates trust for every post, so the
+//  per-call versions above are O(posts × edges); these make it O(edges) once plus
+//  O(edges-for-this-author) per post. Results are identical (parity-tested).
+// ============================================================
+export interface TrustIndex {
+  me: string;
+  byTo: Map<string, TrustEdge[]>;   // edges grouped by their `.to`
+  trusted: Set<string>;             // people `me` vouched for (one-hop sources)
+}
+
+export function buildIndex(edges: TrustEdge[], me: string): TrustIndex {
+  const byTo = new Map<string, TrustEdge[]>();
+  const trusted = new Set<string>();
+  for (const e of edges) {
+    let a = byTo.get(e.to);
+    if (!a) { a = []; byTo.set(e.to, a); }
+    a.push(e);
+    if (e.from === me && e.kind === "vouch") trusted.add(e.to);
+  }
+  return { me, byTo, trusted };
+}
+
+export function myRelationI(idx: TrustIndex, to: string): TrustKind | null {
+  let best: TrustEdge | null = null;
+  for (const e of idx.byTo.get(to) ?? []) if (e.from === idx.me) { if (!best || e.at > best.at) best = e; }
+  return best?.kind ?? null;
+}
+export function isMutedI(idx: TrustIndex, to: string): boolean { return myRelationI(idx, to) === "mute"; }
+export function isBlockedI(idx: TrustIndex, to: string): boolean { return myRelationI(idx, to) === "block"; }
+
+export function vouchCountI(idx: TrustIndex, to: string): number {
+  const s = new Set<string>();
+  for (const e of idx.byTo.get(to) ?? []) if (e.kind === "vouch") s.add(e.from);
+  return s.size;
+}
+
+export function scoreI(idx: TrustIndex, to: string, community?: string): number {
+  if (!idx.me || to === idx.me) return 0;
+  const arr = idx.byTo.get(to) ?? [];
+  let s = 0;
+  // direct (mirrors score's first loop)
+  for (const e of arr) if (e.from === idx.me) s += w(e.kind) * (community && e.community === community ? 1.5 : 1);
+  // one hop (mirrors score's second loop — runs over the same edges independently)
+  for (const e of arr) if (idx.trusted.has(e.from)) s += w(e.kind) * 0.4 * (community && e.community === community ? 1.5 : 1);
+  return Math.max(-2, Math.min(2, s));
+}

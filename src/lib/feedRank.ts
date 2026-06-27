@@ -90,13 +90,15 @@ export function rankFeed(recent: Post[], ctx: RankContext): RankResult {
   }
 
   // Layered moderation → graded verdicts. We only drop "hide" (you muted them);
-  // everything else stays, with the verdict surfaced in the UI.
+  // everything else stays, with the verdict surfaced in the UI. The trust index is
+  // built ONCE here so per-post trust lookups don't each rescan the full edge list.
+  const tidx = trust.buildIndex(ctx.trustEdges, meId);
   const verdicts = new Map<string, ModerationVerdict>();
   posts = posts.filter((p) => {
     const bot = p.author === "rss-bot" || p.author === "system" || p.author === "ai-bot";
     const pk = bot ? undefined : p.author;
     const tw = pk
-      ? { blocked: trust.isBlocked(ctx.trustEdges, meId, pk), muted: trust.isMuted(ctx.trustEdges, meId, pk), score: trust.score(ctx.trustEdges, meId, pk, p.community), vouchCount: trust.vouchCount(ctx.trustEdges, pk) }
+      ? { blocked: trust.isBlockedI(tidx, pk), muted: trust.isMutedI(tidx, pk), score: trust.scoreI(tidx, pk, p.community), vouchCount: trust.vouchCountI(tidx, pk) }
       : { blocked: false, muted: false, score: 0, vouchCount: 0 };
     const v = evaluateModeration([p.text, p.poll?.question].filter(Boolean).join(" "), {
       profile: opts.moderation,
